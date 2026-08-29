@@ -187,7 +187,21 @@
                                  AcceptsTab="True"
                                  SpellCheck.IsEnabled="False"
                                  TextChanged="NoteRichTextBox_TextChanged"
-                                 PreviewKeyDown="NoteRichTextBox_PreviewKeyDown" />
+                                 PreviewKeyDown="NoteRichTextBox_PreviewKeyDown">
+                        <!-- 段落の既定マージンを除去（改行ごとの余分な行間を解消） -->
+                        <RichTextBox.Resources>
+                            <Style TargetType="{x:Type Paragraph}">
+                                <Setter Property="Margin" Value="0" />
+                            </Style>
+                            <Style TargetType="{x:Type List}">
+                                <Setter Property="Margin" Value="0,0,0,0" />
+                                <Setter Property="Padding" Value="0,0,0,0" />
+                            </Style>
+                            <Style TargetType="{x:Type BlockUIContainer}">
+                                <Setter Property="Margin" Value="0,2,0,2" />
+                            </Style>
+                        </RichTextBox.Resources>
+                    </RichTextBox>
                 </Grid>
             </Grid>
         </Border>

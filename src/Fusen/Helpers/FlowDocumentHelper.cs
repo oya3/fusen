@@ -49,6 +49,9 @@ namespace Fusen.Helpers
 
                 // ポータブル復元処理: 画像コンテナの Source を検証・再バインド
                 ResolveImagesInDocument(doc);
+
+                // 段落マージンの正規化（保存済みXAMLに焼き付いた余白も除去）
+                NormalizeParagraphSpacing(doc);
             }
             catch (Exception ex)
             {
@@ -141,6 +144,60 @@ namespace Fusen.Helpers
                 System.Diagnostics.Debug.WriteLine($"[FlowDocumentHelper] InsertImage error: {ex.Message}");
             }
         }
+
+        /// <summary>
+        /// 段落（Paragraph）の既定マージンを除去し、行間の開きすぎを解消する。
+        /// FlowDocument の既定では段落ごとに上下余白が入り、改行のたびに1行分の空きが生じるため、
+        /// 読み込み時・編集時に正規化する。
+        /// </summary>
+        public static void NormalizeParagraphSpacing(FlowDocument doc)
+        {
+            if (doc == null) return;
+
+            doc.PagePadding = new Thickness(0);
+            NormalizeBlocks(doc.Blocks);
+        }
+
+        private static void NormalizeBlocks(BlockCollection blocks)
+        {
+            foreach (var block in blocks)
+            {
+                if (block is Paragraph paragraph)
+                {
+                    if (paragraph.Margin != ParagraphMargin)
+                    {
+                        paragraph.Margin = ParagraphMargin;
+                    }
+                }
+                else if (block is List list)
+                {
+                    if (block.Margin != ListMargin)
+                    {
+                        block.Margin = ListMargin;
+                    }
+                    foreach (var listItem in list.ListItems)
+                    {
+                        NormalizeBlocks(listItem.Blocks);
+                    }
+                }
+                else if (block is Section section)
+                {
+                    section.Margin = ParagraphMargin;
+                    NormalizeBlocks(section.Blocks);
+                }
+                else if (block is BlockUIContainer container)
+                {
+                    if (container.Margin != ImageMargin)
+                    {
+                        container.Margin = ImageMargin;
+                    }
+                }
+            }
+        }
+
+        private static readonly Thickness ParagraphMargin = new Thickness(0);
+        private static readonly Thickness ListMargin = new Thickness(0, 0, 0, 0);
+        private static readonly Thickness ImageMargin = new Thickness(0, 2, 0, 2);
 
         private static void AttachImageContextMenu(Image image, BlockUIContainer container)
         {

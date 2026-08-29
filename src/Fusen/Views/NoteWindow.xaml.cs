@@ -184,6 +184,9 @@ namespace Fusen.Views
                 NoteRichTextBox.Document.Blocks.Add(p);
             }
 
+            // 段落マージンを除去して行間を詰める
+            FlowDocumentHelper.NormalizeParagraphSpacing(NoteRichTextBox.Document);
+
             UpdateTitleDisplay();
 
             // 折りたたみ状態の適用
@@ -418,6 +421,9 @@ namespace Fusen.Views
         private void NoteRichTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (_isInitializing) return;
+
+            // 改行や貼り付けで生成された段落にもマージン除去を適用
+            FlowDocumentHelper.NormalizeParagraphSpacing(NoteRichTextBox.Document);
 
             Note.PlainText = FlowDocumentHelper.GetPlainText(NoteRichTextBox.Document);
             Note.ContentXaml = FlowDocumentHelper.SaveToXaml(NoteRichTextBox.Document);
