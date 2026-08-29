@@ -10,7 +10,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="fusen.ini">
+    <!-- 設定ファイルはリポジトリ直下の fusen.ini を唯一の正とし、リンク参照で出力先へコピーする。
+         プロジェクト内に複製を置くと、片方だけ編集されて設定が食い違うため。 -->
+    <None Include="../../fusen.ini" Link="fusen.ini">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
