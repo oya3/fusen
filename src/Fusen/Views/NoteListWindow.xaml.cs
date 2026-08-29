@@ -107,6 +107,18 @@ namespace Fusen.Views
             }
         }
 
+        private void BtnOpenConfigFile_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                AppConfig.Instance.OpenConfigFileInEditor();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"設定ファイルを開けませんでした:\n{ex.Message}", "fusen", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
         private void NotesListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             if (NotesListBox.SelectedItem is NoteItem note)

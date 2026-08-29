@@ -16,6 +16,7 @@ namespace Fusen.Models
         private double _foldedHeight = 42;
         private bool _isPinned = false;
         private bool _isVisible = true;
+        private double _opacity = 1.0;
         private string _colorTheme = "Yellow";
         private string _contentXaml = string.Empty;
         private string _plainText = string.Empty;
@@ -75,6 +76,12 @@ namespace Fusen.Models
         {
             get => _isVisible;
             set => SetProperty(ref _isVisible, value);
+        }
+
+        public double Opacity
+        {
+            get => _opacity;
+            set => SetProperty(ref _opacity, value);
         }
 
         public string ColorTheme

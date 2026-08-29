@@ -10,6 +10,8 @@ namespace Fusen
 
         private void Application_Startup(object sender, StartupEventArgs e)
         {
+            AppConfig.Instance.Initialize();
+
             _trayIconService = new TrayIconService();
             _trayIconService.Initialize();
 

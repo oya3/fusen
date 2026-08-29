@@ -119,7 +119,8 @@
                 <Button Style="{StaticResource PrimaryActionButtonStyle}" Content="＋ 新規付箋" Click="BtnNew_Click" Margin="0,0,8,0" />
                 <Button Style="{StaticResource ActionButtonStyle}" Content="▲ すべて折りたたむ" Click="BtnFoldAll_Click" Margin="0,0,6,0" />
                 <Button Style="{StaticResource ActionButtonStyle}" Content="▼ すべて展開" Click="BtnExpandAll_Click" Margin="0,0,6,0" />
-                <Button Style="{StaticResource ActionButtonStyle}" Content="📂 データフォルダ" Click="BtnOpenDataDir_Click" />
+                <Button Style="{StaticResource ActionButtonStyle}" Content="📂 データフォルダ" Click="BtnOpenDataDir_Click" Margin="0,0,6,0" />
+                <Button Style="{StaticResource ActionButtonStyle}" Content="⚙️ 設定 (INI)" Click="BtnOpenConfigFile_Click" />
             </StackPanel>
         </Grid>
 

@@ -72,6 +72,40 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- 透過率プリセットボタンスタイル -->
+        <Style x:Key="PresetOpacityButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="22" />
+            <Setter Property="Margin" Value="2,0" />
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Background" Value="#F3F4F6" />
+            <Setter Property="Foreground" Value="#374151" />
+            <Setter Property="BorderBrush" Value="#E5E7EB" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#E0E7FF" />
+                                <Setter TargetName="border" Property="BorderBrush" Value="#6366F1" />
+                                <Setter Property="Foreground" Value="#4F46E5" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#C7D2FE" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <!-- 外枠ドロップシャドウ付きコンテナ -->
@@ -158,19 +192,38 @@
             </Grid>
         </Border>
 
-        <!-- カラー選択ポップアップ -->
+        <!-- カラー＆透過率選択ポップアップ -->
         <Popup x:Name="ColorPickerPopup" StaysOpen="False" AllowsTransparency="True" Placement="Bottom">
-            <Border Background="#FFFFFF" BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="6" Padding="6">
+            <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8" Padding="10" MinWidth="210">
                 <Border.Effect>
-                    <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.2" />
+                    <DropShadowEffect BlurRadius="12" ShadowDepth="3" Opacity="0.18" Color="#000000" />
                 </Border.Effect>
-                <StackPanel Orientation="Horizontal">
-                    <Button Style="{StaticResource ColorCircleButtonStyle}" Background="#FFFDE7" BorderBrush="#FFF176" ToolTip="イエロー" Tag="Yellow" Click="ColorOption_Click" />
-                    <Button Style="{StaticResource ColorCircleButtonStyle}" Background="#E8F5E9" BorderBrush="#A5D6A7" ToolTip="グリーン" Tag="Green" Click="ColorOption_Click" />
-                    <Button Style="{StaticResource ColorCircleButtonStyle}" Background="#E1F5FE" BorderBrush="#81D4FA" ToolTip="ブルー" Tag="Blue" Click="ColorOption_Click" />
-                    <Button Style="{StaticResource ColorCircleButtonStyle}" Background="#FCE4EC" BorderBrush="#F48FB1" ToolTip="ピンク" Tag="Pink" Click="ColorOption_Click" />
-                    <Button Style="{StaticResource ColorCircleButtonStyle}" Background="#F3E5F5" BorderBrush="#CE93D8" ToolTip="パープル" Tag="Purple" Click="ColorOption_Click" />
-                    <Button Style="{StaticResource ColorCircleButtonStyle}" Background="#2B2D30" BorderBrush="#3C3F41" ToolTip="ダーク" Tag="Dark" Click="ColorOption_Click" />
+                <StackPanel>
+                    <!-- 1. カラー選択 -->
+                    <TextBlock Text="カラー" FontSize="11" FontWeight="SemiBold" Foreground="#6B7280" Margin="2,0,0,6" />
+                    <StackPanel x:Name="ColorPaletteStackPanel" Orientation="Horizontal" Margin="0,0,0,8" />
+
+                    <!-- セパレーター -->
+                    <Separator Background="#F3F4F6" Margin="0,2,0,8" />
+
+                    <!-- 2. 不透明度（透過率）スライダー -->
+                    <Grid Margin="2,0,2,4">
+                        <TextBlock Text="不透明度" FontSize="11" FontWeight="SemiBold" Foreground="#6B7280" VerticalAlignment="Center" />
+                        <TextBlock x:Name="OpacityValueTextBlock" Text="100%" FontSize="11" FontWeight="Bold" Foreground="#0078D4" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                    </Grid>
+                    <Slider x:Name="OpacitySlider"
+                            Minimum="20" Maximum="100" SmallChange="5" LargeChange="10"
+                            TickFrequency="5" IsSnapToTickEnabled="False"
+                            ValueChanged="OpacitySlider_ValueChanged"
+                            Margin="2,2,2,8" Cursor="Hand" />
+
+                    <!-- 3. 透過プリセットボタン (100%, 85%, 70%, 50%) -->
+                    <UniformGrid Columns="4" Margin="0,2,0,0">
+                        <Button Style="{StaticResource PresetOpacityButtonStyle}" Content="100%" Tag="1.0" Click="BtnPresetOpacity_Click" ToolTip="標準（不透明）" />
+                        <Button Style="{StaticResource PresetOpacityButtonStyle}" Content="85%" Tag="0.85" Click="BtnPresetOpacity_Click" ToolTip="すりガラス（推奨）" />
+                        <Button Style="{StaticResource PresetOpacityButtonStyle}" Content="70%" Tag="0.7" Click="BtnPresetOpacity_Click" ToolTip="半透明" />
+                        <Button Style="{StaticResource PresetOpacityButtonStyle}" Content="50%" Tag="0.5" Click="BtnPresetOpacity_Click" ToolTip="高透過" />
+                    </UniformGrid>
                 </StackPanel>
             </Border>
         </Popup>

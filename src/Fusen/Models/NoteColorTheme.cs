@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Windows.Media;
+using Fusen.Services;
 
 namespace Fusen.Models
 {
@@ -22,6 +23,46 @@ namespace Fusen.Models
         private static readonly Dictionary<string, ColorThemeInfo> Themes = new(StringComparer.OrdinalIgnoreCase);
 
         static NoteColorTheme()
+        {
+            RegisterDefaultThemes();
+        }
+
+        public static void InitializeThemes(IniFile? ini = null)
+        {
+            Themes.Clear();
+            RegisterDefaultThemes();
+
+            if (ini == null) return;
+
+            // [CustomTheme] の読み込み
+            if (ini.ContainsSection("CustomTheme"))
+            {
+                var customTheme = CreateThemeFromSection(ini, "CustomTheme", "Custom", "カスタム", "#FFFDE7", "#FFF59D", "#FFF176", "#212121", "#3E2723");
+                RegisterTheme(customTheme);
+            }
+
+            // [Theme.<Name>] セクションの読み込み（Yellow等の上書きまたは新規テーマ追加）
+            foreach (var section in ini.GetSections())
+            {
+                if (section.StartsWith("Theme.", StringComparison.OrdinalIgnoreCase) && section.Length > 6)
+                {
+                    string themeName = section.Substring(6).Trim();
+                    if (!string.IsNullOrEmpty(themeName))
+                    {
+                        var baseTheme = Themes.TryGetValue(themeName, out var existing) ? existing : null;
+                        var theme = CreateThemeFromSection(ini, section, themeName, baseTheme?.DisplayName ?? themeName,
+                            baseTheme != null ? GetBrushHex(baseTheme.BackgroundBrush) : "#FFFDE7",
+                            baseTheme != null ? GetBrushHex(baseTheme.HeaderBrush) : "#FFF59D",
+                            baseTheme != null ? GetBrushHex(baseTheme.BorderBrush) : "#FFF176",
+                            baseTheme != null ? GetBrushHex(baseTheme.ForegroundBrush) : "#212121",
+                            baseTheme != null ? GetBrushHex(baseTheme.HeaderForegroundBrush) : "#3E2723");
+                        RegisterTheme(theme);
+                    }
+                }
+            }
+        }
+
+        private static void RegisterDefaultThemes()
         {
             RegisterTheme(new ColorThemeInfo
             {
@@ -102,7 +143,41 @@ namespace Fusen.Models
             });
         }
 
-        private static void RegisterTheme(ColorThemeInfo theme)
+        private static ColorThemeInfo CreateThemeFromSection(IniFile ini, string section, string defaultName, string defaultDisplayName,
+            string defaultBg, string defaultHeader, string defaultBorder, string defaultFg, string defaultHeaderFg)
+        {
+            string name = ini.GetString(section, "Name", defaultName);
+            string displayName = ini.GetString(section, "DisplayName", defaultDisplayName);
+
+            string bgHex = ini.GetString(section, "Background", defaultBg);
+            string headerHex = ini.GetString(section, "Header", defaultHeader);
+            string borderHex = ini.GetString(section, "Border", defaultBorder);
+            string fgHex = ini.GetString(section, "Foreground", defaultFg);
+            string headerFgHex = ini.GetString(section, "HeaderForeground", defaultHeaderFg);
+
+            var bgBrush = CreateBrush(bgHex);
+            var headerBrush = CreateBrush(headerHex);
+            var borderBrush = CreateBrush(borderHex);
+            var fgBrush = CreateBrush(fgHex);
+            var headerFgBrush = CreateBrush(headerFgHex);
+            var buttonHover = CreateBrush(borderHex, 0.5);
+            var iconBrush = headerFgBrush;
+
+            return new ColorThemeInfo
+            {
+                Name = name,
+                DisplayName = displayName,
+                BackgroundBrush = bgBrush,
+                HeaderBrush = headerBrush,
+                BorderBrush = borderBrush,
+                ForegroundBrush = fgBrush,
+                HeaderForegroundBrush = headerFgBrush,
+                ButtonHoverBrush = buttonHover,
+                IconColorBrush = iconBrush
+            };
+        }
+
+        public static void RegisterTheme(ColorThemeInfo theme)
         {
             theme.BackgroundBrush.Freeze();
             theme.HeaderBrush.Freeze();
@@ -114,23 +189,43 @@ namespace Fusen.Models
             Themes[theme.Name] = theme;
         }
 
-        private static SolidColorBrush CreateBrush(string hexColor, double opacity = 1.0)
+        public static SolidColorBrush CreateBrush(string hexColor, double opacity = 1.0)
         {
-            var color = (Color)ColorConverter.ConvertFromString(hexColor);
+            var color = IniFile.ParseColorString(hexColor, Colors.Transparent);
             if (opacity < 1.0)
             {
-                color.A = (byte)(255 * opacity);
+                color.A = (byte)(color.A * Math.Clamp(opacity, 0.0, 1.0));
             }
-            return new SolidColorBrush(color);
+            var brush = new SolidColorBrush(color);
+            brush.Freeze();
+            return brush;
+        }
+
+        private static string GetBrushHex(SolidColorBrush brush)
+        {
+            var c = brush.Color;
+            if (c.A == 255)
+            {
+                return $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+            }
+            return $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}";
         }
 
         public static ColorThemeInfo GetTheme(string? themeName)
         {
-            if (string.IsNullOrWhiteSpace(themeName) || !Themes.TryGetValue(themeName, out var theme))
+            if (!string.IsNullOrWhiteSpace(themeName) && Themes.TryGetValue(themeName, out var theme))
             {
-                return Themes["Yellow"];
+                return theme;
             }
-            return theme;
+            if (Themes.TryGetValue("Yellow", out var yellow))
+            {
+                return yellow;
+            }
+            foreach (var t in Themes.Values)
+            {
+                return t;
+            }
+            return new ColorThemeInfo();
         }
 
         public static IEnumerable<ColorThemeInfo> GetAllThemes() => Themes.Values;

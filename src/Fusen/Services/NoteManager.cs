@@ -42,13 +42,16 @@ namespace Fusen.Services
             if (loadedNotes.Count == 0)
             {
                 // 初回起動時のウェルカム付箋を作成
+                var config = AppConfig.Instance;
                 var defaultNote = new NoteItem
                 {
                     X = 150,
                     Y = 150,
-                    Width = 280,
-                    Height = 320,
-                    ColorTheme = "Yellow",
+                    Width = config.DefaultWidth,
+                    Height = Math.Max(320, config.DefaultHeight),
+                    ColorTheme = config.DefaultColorTheme,
+                    Opacity = config.DefaultOpacity,
+                    IsPinned = config.DefaultPinned,
                     PlainText = "ようこそ fusen へ！\n- 上部バーをダブルクリックで折りたたみ\n- Ctrl + V で画像を直接貼り付け\n- ＋ ボタンで新規付箋を追加\n- 📋 ボタンで一覧マネージャーを表示",
                     IsVisible = true
                 };
@@ -94,22 +97,25 @@ namespace Fusen.Services
 
         public NoteItem CreateNewNote(double? x = null, double? y = null, string? initialText = null)
         {
+            var config = AppConfig.Instance;
             double newX = x ?? (100 + (Notes.Count % 8) * 30);
             double newY = y ?? (100 + (Notes.Count % 8) * 30);
 
             // デスクトップの表示領域内に収める
             var screenWidth = SystemParameters.PrimaryScreenWidth;
             var screenHeight = SystemParameters.PrimaryScreenHeight;
-            if (newX > screenWidth - 300) newX = 100;
-            if (newY > screenHeight - 340) newY = 100;
+            if (newX > screenWidth - config.DefaultWidth) newX = 100;
+            if (newY > screenHeight - config.DefaultHeight) newY = 100;
 
             var note = new NoteItem
             {
                 X = newX,
                 Y = newY,
-                Width = 280,
-                Height = 300,
-                ColorTheme = "Yellow",
+                Width = config.DefaultWidth,
+                Height = config.DefaultHeight,
+                ColorTheme = config.DefaultColorTheme,
+                Opacity = config.DefaultOpacity,
+                IsPinned = config.DefaultPinned,
                 PlainText = initialText ?? string.Empty,
                 IsVisible = true
             };

@@ -216,6 +216,9 @@ namespace Fusen.Services
             var itemOpenDir = new MenuItem { Header = "📂 データフォルダを開く" };
             itemOpenDir.Click += (s, e) => OpenDataDirectory();
 
+            var itemOpenConfig = new MenuItem { Header = "⚙️ 設定 (fusen.ini) を開く" };
+            itemOpenConfig.Click += (s, e) => OpenConfigFile();
+
             var itemExpandAll = new MenuItem { Header = "▲ すべて展開" };
             itemExpandAll.Click += (s, e) => NoteManager.Instance.FoldAll(false);
 
@@ -228,6 +231,7 @@ namespace Fusen.Services
             _contextMenu.Items.Add(itemNew);
             _contextMenu.Items.Add(itemList);
             _contextMenu.Items.Add(itemOpenDir);
+            _contextMenu.Items.Add(itemOpenConfig);
             _contextMenu.Items.Add(new Separator());
             _contextMenu.Items.Add(itemExpandAll);
             _contextMenu.Items.Add(itemFoldAll);
@@ -252,6 +256,18 @@ namespace Fusen.Services
             catch (Exception ex)
             {
                 MessageBox.Show($"データフォルダを開けませんでした:\n{ex.Message}", "fusen", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void OpenConfigFile()
+        {
+            try
+            {
+                AppConfig.Instance.OpenConfigFileInEditor();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"設定ファイルを開けませんでした:\n{ex.Message}", "fusen", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 

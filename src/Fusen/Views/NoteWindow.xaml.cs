@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -20,6 +21,7 @@ namespace Fusen.Views
     {
         public NoteItem Note { get; }
         private bool _isInitializing = true;
+        private bool _updatingOpacitySlider = false;
         private double _expandedHeight = 300;
 
         // Windows API: WM_NCHITTEST 用定数
@@ -45,9 +47,27 @@ namespace Fusen.Views
             Width = Math.Max(200, Note.Width);
             _expandedHeight = Math.Max(120, Note.Height);
 
+            // 不透明度の適用
+            double targetOpacity = Note.Opacity > 0 ? Note.Opacity : AppConfig.Instance.DefaultOpacity;
+            Opacity = Math.Clamp(targetOpacity, 0.1, 1.0);
+
             Topmost = Note.IsPinned;
             UpdatePinState();
             ApplyColorTheme(Note.ColorTheme);
+
+            // フォント設定の適用
+            if (AppConfig.Instance.FontSize > 0)
+            {
+                NoteRichTextBox.FontSize = AppConfig.Instance.FontSize;
+            }
+            if (!string.IsNullOrWhiteSpace(AppConfig.Instance.FontFamily))
+            {
+                try
+                {
+                    NoteRichTextBox.FontFamily = new System.Windows.Media.FontFamily(AppConfig.Instance.FontFamily);
+                }
+                catch { }
+            }
 
             // クリップボード貼り付けハンドラの設定
             DataObject.AddPastingHandler(NoteRichTextBox, OnPasteCommand);
@@ -149,6 +169,9 @@ namespace Fusen.Views
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            // カラーパレットの動的生成
+            PopulateColorPalette();
+
             // XAMLからFlowDocumentを復元
             if (!string.IsNullOrWhiteSpace(Note.ContentXaml))
             {
@@ -177,6 +200,26 @@ namespace Fusen.Views
             _isInitializing = false;
         }
 
+        private void PopulateColorPalette()
+        {
+            ColorPaletteStackPanel.Children.Clear();
+            var style = (Style)FindResource("ColorCircleButtonStyle");
+
+            foreach (var theme in NoteColorTheme.GetAllThemes())
+            {
+                var btn = new Button
+                {
+                    Style = style,
+                    Background = theme.BackgroundBrush,
+                    BorderBrush = theme.BorderBrush,
+                    ToolTip = theme.DisplayName,
+                    Tag = theme.Name
+                };
+                btn.Click += ColorOption_Click;
+                ColorPaletteStackPanel.Children.Add(btn);
+            }
+        }
+
         public void ApplyColorTheme(string themeName)
         {
             Note.ColorTheme = themeName;
@@ -189,10 +232,7 @@ namespace Fusen.Views
             NoteRichTextBox.Foreground = theme.ForegroundBrush;
             NoteRichTextBox.CaretBrush = theme.ForegroundBrush;
 
-            if (theme.Name == "Dark")
-            {
-                FoldIcon.Foreground = theme.HeaderForegroundBrush;
-            }
+            FoldIcon.Foreground = theme.HeaderForegroundBrush;
         }
 
         public void ToggleFold(bool? forceFold = null)
@@ -244,6 +284,7 @@ namespace Fusen.Views
                 Note.X = Left;
                 Note.Y = Top;
                 Note.Width = Width;
+                Note.Opacity = Opacity;
                 if (!Note.IsFolded)
                 {
                     Note.Height = Height;
@@ -302,7 +343,51 @@ namespace Fusen.Views
         private void BtnColor_Click(object sender, RoutedEventArgs e)
         {
             ColorPickerPopup.PlacementTarget = (UIElement)sender;
+
+            // 現在の不透明度をスライダーに同期
+            double currentOpacity = Note.Opacity > 0 ? Note.Opacity : this.Opacity;
+            if (currentOpacity <= 0 || currentOpacity > 1.0) currentOpacity = 1.0;
+
+            _updatingOpacitySlider = true;
+            OpacitySlider.Value = Math.Round(currentOpacity * 100);
+            OpacityValueTextBlock.Text = $"{(int)OpacitySlider.Value}%";
+            _updatingOpacitySlider = false;
+
             ColorPickerPopup.IsOpen = true;
+        }
+
+        private void OpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_updatingOpacitySlider || _isInitializing) return;
+
+            int percent = (int)Math.Round(e.NewValue);
+            if (OpacityValueTextBlock != null)
+            {
+                OpacityValueTextBlock.Text = $"{percent}%";
+            }
+
+            double newOpacity = percent / 100.0;
+            this.Opacity = Math.Clamp(newOpacity, 0.1, 1.0);
+            Note.Opacity = this.Opacity;
+
+            NoteManager.Instance.RequestAutoSave();
+        }
+
+        private void BtnPresetOpacity_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string tagStr &&
+                double.TryParse(tagStr, NumberStyles.Float, CultureInfo.InvariantCulture, out double opacityVal))
+            {
+                _updatingOpacitySlider = true;
+                OpacitySlider.Value = Math.Round(opacityVal * 100);
+                OpacityValueTextBlock.Text = $"{(int)OpacitySlider.Value}%";
+                _updatingOpacitySlider = false;
+
+                this.Opacity = Math.Clamp(opacityVal, 0.1, 1.0);
+                Note.Opacity = this.Opacity;
+
+                NoteManager.Instance.RequestAutoSave();
+            }
         }
 
         private void ColorOption_Click(object sender, RoutedEventArgs e)
