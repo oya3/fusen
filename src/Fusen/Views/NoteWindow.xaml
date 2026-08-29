@@ -1,0 +1,183 @@
+<Window x:Class="Fusen.Views.NoteWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Fusen.Views"
+        xmlns:helpers="clr-namespace:Fusen.Helpers"
+        mc:Ignorable="d"
+        Title="fusen"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        MinWidth="200"
+        MinHeight="38"
+        Width="280"
+        Height="300"
+        LocationChanged="Window_LocationChanged"
+        SizeChanged="Window_SizeChanged"
+        Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <helpers:BoolToVisibilityConverter x:Key="BoolToVisConverter" />
+        <helpers:InverseBooleanConverter x:Key="InverseBoolConverter" />
+
+        <!-- スタイリッシュなヘッダーボタン用スタイル -->
+        <Style x:Key="HeaderButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Margin" Value="1,0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#22000000" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#44000000" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- カラー選択サークルボタン用スタイル -->
+        <Style x:Key="ColorCircleButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Margin" Value="3" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="circle" Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1.5" CornerRadius="12" />
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="circle" Property="BorderBrush" Value="#333333" />
+                                <Setter TargetName="circle" Property="BorderThickness" Value="2" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- 外枠ドロップシャドウ付きコンテナ -->
+    <Grid Margin="8">
+        <Border x:Name="MainBorder" CornerRadius="8" BorderThickness="1">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="12" Direction="270" ShadowDepth="3" Opacity="0.25" Color="#000000" />
+            </Border.Effect>
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" /> <!-- ヘッダー (折りたたみ時はここだけ表示) -->
+                    <RowDefinition Height="*" />    <!-- エディタ本文 (折りたたみ時はCollapsed) -->
+                </Grid.RowDefinitions>
+
+                <!-- 1. ヘッダー / タイトルバー -->
+                <Border x:Name="HeaderBorder" Grid.Row="0" CornerRadius="7,7,0,0" Height="36"
+                        MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                    <Grid Margin="6,0,4,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />   <!-- タイトル / ドラッグ領域 -->
+                            <ColumnDefinition Width="Auto" /> <!-- ツールボタン群 -->
+                        </Grid.ColumnDefinitions>
+
+                        <!-- タイトル（折りたたみ時・展開時ともに1行目テキストを表示） -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock x:Name="TitleTextBlock" Text="新規メモ" FontWeight="SemiBold" FontSize="13"
+                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="120"
+                                       ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                        </StackPanel>
+
+                        <!-- 操作ツールボタン群 -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <!-- 新規作成 ＋ -->
+                            <Button Style="{StaticResource HeaderButtonStyle}" ToolTip="新しい付箋を作成 (Ctrl+N)" Click="BtnNew_Click">
+                                <TextBlock Text="＋" FontSize="14" FontWeight="Bold" Foreground="{Binding ElementName=TitleTextBlock, Path=Foreground}" />
+                            </Button>
+
+                            <!-- ピン留め 📌 -->
+                            <Button x:Name="BtnPin" Style="{StaticResource HeaderButtonStyle}" ToolTip="最前面にピン留め" Click="BtnPin_Click">
+                                <TextBlock x:Name="PinIcon" Text="📌" FontSize="11" Opacity="0.5" />
+                            </Button>
+
+                            <!-- カラーパレット 🎨 -->
+                            <Button Style="{StaticResource HeaderButtonStyle}" ToolTip="付箋の色を変更" Click="BtnColor_Click">
+                                <TextBlock Text="🎨" FontSize="11" />
+                            </Button>
+
+                            <!-- メモ一覧 📋 -->
+                            <Button Style="{StaticResource HeaderButtonStyle}" ToolTip="メモ一覧を開く (Ctrl+L)" Click="BtnList_Click">
+                                <TextBlock Text="📋" FontSize="11" />
+                            </Button>
+
+                            <!-- 折りたたみ / 展開 ▲ / ▼ -->
+                            <Button x:Name="BtnFold" Style="{StaticResource HeaderButtonStyle}" ToolTip="折りたたみ / 展開 (ダブルクリックでも切替)" Click="BtnFold_Click">
+                                <TextBlock x:Name="FoldIcon" Text="▲" FontSize="11" FontWeight="Bold" Foreground="{Binding ElementName=TitleTextBlock, Path=Foreground}" />
+                            </Button>
+
+                            <!-- 閉じる（剥がす/削除） ✕ -->
+                            <Button Style="{StaticResource HeaderButtonStyle}" ToolTip="この付箋を剥がす（削除）" Click="BtnDelete_Click">
+                                <TextBlock Text="✕" FontSize="12" FontWeight="SemiBold" Foreground="{Binding ElementName=TitleTextBlock, Path=Foreground}" />
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- 2. 本文エディタ領域 -->
+                <Grid x:Name="ContentArea" Grid.Row="1">
+                    <RichTextBox x:Name="NoteRichTextBox"
+                                 Margin="8,4,8,8"
+                                 Padding="2"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 FontSize="13.5"
+                                 FontFamily="Segoe UI, Yu Gothic UI, Meiryo"
+                                 VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Disabled"
+                                 AcceptsReturn="True"
+                                 AcceptsTab="True"
+                                 SpellCheck.IsEnabled="False"
+                                 TextChanged="NoteRichTextBox_TextChanged"
+                                 PreviewKeyDown="NoteRichTextBox_PreviewKeyDown" />
+
+                    <!-- リサイズグリップ（右下） -->
+                    <ResizeGrip x:Name="WindowResizeGrip" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                Width="16" Height="16" Margin="0,0,2,2" Opacity="0.4"
+                                MouseDown="ResizeGrip_MouseDown" />
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- カラー選択ポップアップ -->
+        <Popup x:Name="ColorPickerPopup" StaysOpen="False" AllowsTransparency="True" Placement="Bottom">
+            <Border Background="#FFFFFF" BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="6" Padding="6">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.2" />
+                </Border.Effect>
+                <StackPanel Orientation="Horizontal">
+                    <Button Style="{StaticResource ColorCircleButtonStyle}" Background="#FFFDE7" BorderBrush="#FFF176" ToolTip="イエロー" Tag="Yellow" Click="ColorOption_Click" />
+                    <Button Style="{StaticResource ColorCircleButtonStyle}" Background="#E8F5E9" BorderBrush="#A5D6A7" ToolTip="グリーン" Tag="Green" Click="ColorOption_Click" />
+                    <Button Style="{StaticResource ColorCircleButtonStyle}" Background="#E1F5FE" BorderBrush="#81D4FA" ToolTip="ブルー" Tag="Blue" Click="ColorOption_Click" />
+                    <Button Style="{StaticResource ColorCircleButtonStyle}" Background="#FCE4EC" BorderBrush="#F48FB1" ToolTip="ピンク" Tag="Pink" Click="ColorOption_Click" />
+                    <Button Style="{StaticResource ColorCircleButtonStyle}" Background="#F3E5F5" BorderBrush="#CE93D8" ToolTip="パープル" Tag="Purple" Click="ColorOption_Click" />
+                    <Button Style="{StaticResource ColorCircleButtonStyle}" Background="#2B2D30" BorderBrush="#3C3F41" ToolTip="ダーク" Tag="Dark" Click="ColorOption_Click" />
+                </StackPanel>
+            </Border>
+        </Popup>
+    </Grid>
+</Window>

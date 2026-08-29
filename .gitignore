@@ -1,0 +1,19 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+dist/
+
+# Visual Studio / VS Code
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+.vscode/
+
+# User Data (プライベートメモ・画像データ)
+data/
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
