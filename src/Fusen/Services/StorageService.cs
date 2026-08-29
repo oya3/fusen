@@ -14,10 +14,27 @@ namespace Fusen.Services
         public List<NoteItem> Notes { get; set; } = new();
     }
 
+    /// <summary>
+    /// notes.json の復旧が発生したことを UI 層へ伝えるための結果。
+    /// 表示はストレージ層の責務ではないため、ここでは記録のみを行う。
+    /// </summary>
+    public class RecoveryInfo
+    {
+        public bool Succeeded { get; init; }
+        public string RecoveredFromFileName { get; init; } = string.Empty;
+        public string QuarantinedFileName { get; init; } = string.Empty;
+        public int NoteCount { get; init; }
+    }
+
     public class StorageService
     {
         private static StorageService? _instance;
         public static StorageService Instance => _instance ??= new StorageService();
+
+        /// <summary>
+        /// 直近の LoadNotes で復旧が発生した場合の情報。発生していなければ null。
+        /// </summary>
+        public RecoveryInfo? LastRecovery { get; private set; }
 
         private readonly string _dataDirectory;
         private readonly string _imagesDirectory;
@@ -55,41 +72,88 @@ namespace Fusen.Services
                 Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             };
+
+            BackupService.Instance.Initialize(_dataDirectory);
         }
 
         public List<NoteItem> LoadNotes()
         {
+            if (!File.Exists(_notesFilePath))
+            {
+                return new List<NoteItem>();
+            }
+
+            LastRecovery = null;
+
+            // 通常読み込み
             try
             {
-                if (!File.Exists(_notesFilePath))
-                {
-                    return new List<NoteItem>();
-                }
-
                 var json = File.ReadAllText(_notesFilePath);
-                if (string.IsNullOrWhiteSpace(json))
+
+                // 空ファイルは書き込み途中の破損とみなし、世代バックアップからの復旧を試みる
+                if (!string.IsNullOrWhiteSpace(json))
                 {
-                    return new List<NoteItem>();
+                    var doc = JsonSerializer.Deserialize<NotesDocument>(json, _jsonOptions);
+                    if (doc?.Notes != null)
+                    {
+                        // 読み込みに成功した時点の状態を1世代保全する
+                        BackupService.Instance.MaybeBackup(_notesFilePath, force: true);
+                        return doc.Notes;
+                    }
                 }
 
-                var doc = JsonSerializer.Deserialize<NotesDocument>(json, _jsonOptions);
-                return doc?.Notes ?? new List<NoteItem>();
+                System.Diagnostics.Debug.WriteLine("[StorageService] notes.json is empty or invalid. Attempting recovery.");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[StorageService] LoadNotes error: {ex.Message}");
-                // バックアップを作成して空リストを返す
+            }
+
+            return RecoverFromBackup();
+        }
+
+        /// <summary>
+        /// notes.json が破損していた場合に、世代バックアップの新しい順に読み込みを試みて復旧する。
+        /// 破損した原本は削除せず backups/ へ退避する。
+        /// </summary>
+        private List<NoteItem> RecoverFromBackup()
+        {
+            var quarantinedPath = BackupService.Instance.QuarantineCorruptFile(_notesFilePath);
+
+            foreach (var backupPath in BackupService.Instance.EnumerateBackups())
+            {
                 try
                 {
-                    if (File.Exists(_notesFilePath))
+                    var json = File.ReadAllText(backupPath);
+                    if (string.IsNullOrWhiteSpace(json)) continue;
+
+                    var doc = JsonSerializer.Deserialize<NotesDocument>(json, _jsonOptions);
+                    if (doc?.Notes == null) continue;
+
+                    // 復旧した内容を notes.json として書き戻す
+                    File.Copy(backupPath, _notesFilePath, overwrite: true);
+
+                    LastRecovery = new RecoveryInfo
                     {
-                        var backupPath = _notesFilePath + $".bak_{DateTime.Now:yyyyMMddHHmmss}";
-                        File.Copy(_notesFilePath, backupPath, true);
-                    }
+                        Succeeded = true,
+                        RecoveredFromFileName = Path.GetFileName(backupPath),
+                        QuarantinedFileName = Path.GetFileName(quarantinedPath),
+                        NoteCount = doc.Notes.Count
+                    };
+                    return doc.Notes;
                 }
-                catch { }
-                return new List<NoteItem>();
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[StorageService] Recovery from {backupPath} failed: {ex.Message}");
+                }
             }
+
+            LastRecovery = new RecoveryInfo
+            {
+                Succeeded = false,
+                QuarantinedFileName = Path.GetFileName(quarantinedPath)
+            };
+            return new List<NoteItem>();
         }
 
         public void SaveNotes(List<NoteItem> notes)
@@ -107,11 +171,22 @@ namespace Fusen.Services
 
                 File.WriteAllText(tempPath, json);
                 File.Move(tempPath, _notesFilePath, overwrite: true);
+
+                // 保存に成功した内容のみを世代バックアップの対象にする（間隔条件を満たす場合のみ作成）
+                BackupService.Instance.MaybeBackup(_notesFilePath);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[StorageService] SaveNotes error: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 間隔条件を無視して世代バックアップを作成する（終了時など）。
+        /// </summary>
+        public void BackupNow()
+        {
+            BackupService.Instance.MaybeBackup(_notesFilePath, force: true);
         }
 
         public string SaveImage(BitmapSource bitmapSource, string noteId)

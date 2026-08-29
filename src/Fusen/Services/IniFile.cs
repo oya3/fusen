@@ -132,6 +132,18 @@ namespace Fusen.Services
             return defaultValue;
         }
 
+        public int GetInt(string section, string key, int defaultValue, int min = int.MinValue, int max = int.MaxValue)
+        {
+            var str = GetString(section, key);
+            if (string.IsNullOrWhiteSpace(str)) return defaultValue;
+
+            if (int.TryParse(str.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int result))
+            {
+                return Math.Clamp(result, min, max);
+            }
+            return defaultValue;
+        }
+
         public double GetOpacity(string section, string key, double defaultValue = 1.0)
         {
             var str = GetString(section, key);

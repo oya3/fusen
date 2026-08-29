@@ -23,6 +23,11 @@ namespace Fusen.Services
         public double FontSize { get; set; } = 13.5;
         public string FontFamily { get; set; } = "Segoe UI, Yu Gothic UI, Meiryo";
 
+        // [Backup] 設定項目
+        public bool BackupEnabled { get; set; } = true;
+        public int BackupGenerations { get; set; } = 5;
+        public int BackupIntervalMinutes { get; set; } = 10;
+
         public void Initialize()
         {
             // 設定ファイルの検索とロード
@@ -98,6 +103,11 @@ namespace Fusen.Services
                 FontFamily = fontFam;
             }
 
+            // [Backup] セクション
+            BackupEnabled = ini.GetBool("Backup", "Enabled", true);
+            BackupGenerations = ini.GetInt("Backup", "Generations", 5, 1, 100);
+            BackupIntervalMinutes = ini.GetInt("Backup", "IntervalMinutes", 10, 1, 1440);
+
             // テーマの初期化・カスタムテーマ登録
             NoteColorTheme.InitializeThemes(ini);
         }
@@ -155,6 +165,22 @@ FontSize = 13.5
 
 ; 本文のフォントファミリー (省略時はシステムの既定フォント)
 FontFamily = Segoe UI, Yu Gothic UI, Meiryo
+
+; ------------------------------------------------------------------------------
+; [Backup] 世代バックアップ設定
+; data/notes.json のコピーを data/backups/ に世代保存します。
+; 万一 notes.json が破損しても、起動時に最新の正常な世代から自動復旧します。
+; ------------------------------------------------------------------------------
+[Backup]
+; 世代バックアップを有効にするかどうか (true / false)
+Enabled = true
+
+; 保持する世代数 (1 〜 100)。超過した古い世代から自動削除されます。
+Generations = 5
+
+; 稼働中にバックアップを作成する間隔（分, 1 〜 1440）
+; 起動時には、この間隔に関わらず必ず 1 世代作成されます。
+IntervalMinutes = 10
 
 ; ------------------------------------------------------------------------------
 ; [CustomTheme] カスタムカラー設定

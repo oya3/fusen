@@ -74,6 +74,56 @@ namespace Fusen.Services
                     ShowNoteWindow(note);
                 }
             }
+
+            // 破損からの復旧が発生していれば、付箋を表示し終えてから通知する
+            NotifyIfRecovered();
+        }
+
+        /// <summary>
+        /// 起動時に notes.json の復旧が発生していた場合に、その結果をユーザーへ知らせる。
+        /// </summary>
+        /// <summary>
+        /// 起動時に notes.json の復旧が発生していた場合に、その結果をユーザーへ知らせる。
+        /// </summary>
+        private static void NotifyIfRecovered()
+        {
+            var recovery = StorageService.Instance.LastRecovery;
+            if (recovery == null) return;
+
+            string message;
+            string caption;
+            MessageBoxImage icon;
+
+            if (recovery.Succeeded)
+            {
+                caption = "fusen - バックアップから復元しました";
+                icon = MessageBoxImage.Information;
+                message = "付箋データ (notes.json) が読み込めなかったため、バックアップから復元しました。\n\n"
+                        + $"復元元: {recovery.RecoveredFromFileName}\n"
+                        + $"復元した付箋: {recovery.NoteCount} 件";
+            }
+            else
+            {
+                caption = "fusen - データを読み込めませんでした";
+                icon = MessageBoxImage.Warning;
+                message = "付箋データ (notes.json) が読み込めませんでした。\n"
+                        + "利用可能なバックアップも見つからなかったため、空の状態で起動します。";
+            }
+
+            if (!string.IsNullOrEmpty(recovery.QuarantinedFileName))
+            {
+                message += "\n\n読み込めなかったファイルは削除せず、data/backups/ に次の名前で保管しています。\n"
+                        + recovery.QuarantinedFileName;
+            }
+
+            try
+            {
+                MessageBox.Show(message, caption, MessageBoxButton.OK, icon);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[NoteManager] NotifyIfRecovered error: {ex.Message}");
+            }
         }
 
         public void RequestAutoSave()
@@ -234,6 +284,9 @@ namespace Fusen.Services
         public void Shutdown()
         {
             SaveAllImmediately();
+
+            // 終了時の状態を1世代残しておく（次回起動までの間に破損しても直前まで戻せる）
+            StorageService.Instance.BackupNow();
             foreach (var kvp in _openWindows.ToList())
             {
                 kvp.Value.Close();
