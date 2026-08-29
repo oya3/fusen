@@ -13,8 +13,6 @@ using Fusen.Services;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using Button = System.Windows.Controls.Button;
 using RichTextBox = System.Windows.Controls.RichTextBox;
-using MouseEventArgs = System.Windows.Input.MouseEventArgs;
-using DragEventArgs = System.Windows.DragEventArgs;
 
 namespace Fusen.Views
 {
@@ -24,13 +22,16 @@ namespace Fusen.Views
         private bool _isInitializing = true;
         private double _expandedHeight = 300;
 
-        // Windows API: ウィンドウドラッグリサイズ用定数
-        private const int WM_SYSCOMMAND = 0x0112;
-        private const int SC_SIZE = 0xF000;
-        private const int WMSZ_BOTTOMRIGHT = 8;
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto)]
-        private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+        // Windows API: WM_NCHITTEST 用定数
+        private const int WM_NCHITTEST = 0x0084;
+        private const int HTLEFT = 10;
+        private const int HTRIGHT = 11;
+        private const int HTTOP = 12;
+        private const int HTTOPLEFT = 13;
+        private const int HTTOPRIGHT = 14;
+        private const int HTBOTTOM = 15;
+        private const int HTBOTTOMLEFT = 16;
+        private const int HTBOTTOMRIGHT = 17;
 
         public NoteWindow(NoteItem note)
         {
@@ -50,6 +51,100 @@ namespace Fusen.Views
 
             // クリップボード貼り付けハンドラの設定
             DataObject.AddPastingHandler(NoteRichTextBox, OnPasteCommand);
+        }
+
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            var hwnd = new WindowInteropHelper(this).Handle;
+            var source = HwndSource.FromHwnd(hwnd);
+            source?.AddHook(WndProc);
+        }
+
+        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == WM_NCHITTEST)
+            {
+                // マウス座標を取得してウィンドウ内ローカル座標に変換
+                int screenX = unchecked((short)(long)lParam);
+                int screenY = unchecked((short)((long)lParam >> 16));
+
+                var pt = PointFromScreen(new Point(screenX, screenY));
+
+                const double borderMargin = 8.0;      // 外枠ドロップシャドウのマージン
+                const double resizeThickness = 8.0;    // リサイズ判定の幅
+
+                double w = ActualWidth;
+                double h = ActualHeight;
+
+                // 付箋の外枠ボーダー位置に対する判定
+                bool isLeft = pt.X >= 0 && pt.X <= (borderMargin + resizeThickness);
+                bool isRight = pt.X >= (w - borderMargin - resizeThickness) && pt.X <= w;
+                bool isTop = pt.Y >= 0 && pt.Y <= (borderMargin + resizeThickness);
+                bool isBottom = pt.Y >= (h - borderMargin - resizeThickness) && pt.Y <= h;
+
+                if (Note.IsFolded)
+                {
+                    // 折りたたみ時は左右のリサイズのみ許可
+                    if (isLeft)
+                    {
+                        handled = true;
+                        return (IntPtr)HTLEFT;
+                    }
+                    if (isRight)
+                    {
+                        handled = true;
+                        return (IntPtr)HTRIGHT;
+                    }
+                }
+                else
+                {
+                    // 展開時は8方向すべてのリサイズに対応
+                    if (isTop && isLeft)
+                    {
+                        handled = true;
+                        return (IntPtr)HTTOPLEFT;
+                    }
+                    if (isTop && isRight)
+                    {
+                        handled = true;
+                        return (IntPtr)HTTOPRIGHT;
+                    }
+                    if (isBottom && isLeft)
+                    {
+                        handled = true;
+                        return (IntPtr)HTBOTTOMLEFT;
+                    }
+                    if (isBottom && isRight)
+                    {
+                        handled = true;
+                        return (IntPtr)HTBOTTOMRIGHT;
+                    }
+
+                    if (isLeft)
+                    {
+                        handled = true;
+                        return (IntPtr)HTLEFT;
+                    }
+                    if (isRight)
+                    {
+                        handled = true;
+                        return (IntPtr)HTRIGHT;
+                    }
+                    if (isTop)
+                    {
+                        handled = true;
+                        return (IntPtr)HTTOP;
+                    }
+                    if (isBottom)
+                    {
+                        handled = true;
+                        return (IntPtr)HTBOTTOM;
+                    }
+                }
+            }
+
+            return IntPtr.Zero;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -126,7 +221,6 @@ namespace Fusen.Views
                 Height = 52;
                 FoldIcon.Text = "▼";
                 BtnFold.ToolTip = "展開する";
-                WindowResizeGrip.Visibility = Visibility.Collapsed;
                 MainBorder.CornerRadius = new CornerRadius(8);
                 HeaderBorder.CornerRadius = new CornerRadius(7);
             }
@@ -138,7 +232,6 @@ namespace Fusen.Views
                 Height = Math.Max(120, _expandedHeight);
                 FoldIcon.Text = "▲";
                 BtnFold.ToolTip = "折りたたむ";
-                WindowResizeGrip.Visibility = Visibility.Visible;
                 MainBorder.CornerRadius = new CornerRadius(8);
                 HeaderBorder.CornerRadius = new CornerRadius(7, 7, 0, 0);
             }
@@ -296,18 +389,6 @@ namespace Fusen.Views
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[NoteWindow] OnPasteCommand error: {ex.Message}");
-            }
-        }
-
-        private void ResizeGrip_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.LeftButton == MouseButtonState.Pressed && !Note.IsFolded)
-            {
-                var hwnd = new WindowInteropHelper(this).Handle;
-                SendMessage(hwnd, WM_SYSCOMMAND, (IntPtr)(SC_SIZE + WMSZ_BOTTOMRIGHT), IntPtr.Zero);
-                SyncModelFromWindow();
-                NoteManager.Instance.RequestAutoSave();
-                e.Handled = true;
             }
         }
 

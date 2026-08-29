@@ -154,11 +154,6 @@
                                  SpellCheck.IsEnabled="False"
                                  TextChanged="NoteRichTextBox_TextChanged"
                                  PreviewKeyDown="NoteRichTextBox_PreviewKeyDown" />
-
-                    <!-- リサイズグリップ（右下） -->
-                    <ResizeGrip x:Name="WindowResizeGrip" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                Width="16" Height="16" Margin="0,0,2,2" Opacity="0.4"
-                                MouseDown="ResizeGrip_MouseDown" />
                 </Grid>
             </Grid>
         </Border>
