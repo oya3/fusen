@@ -137,8 +137,9 @@ namespace Fusen.Models
             var lines = _plainText.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
             if (lines.Length > 0 && !string.IsNullOrWhiteSpace(lines[0]))
             {
-                var firstLine = lines[0].Trim();
-                Title = firstLine.Length > 40 ? firstLine.Substring(0, 40) + "..." : firstLine;
+                // 末尾の省略は表示側（TextTrimming）に任せる。
+                // ここで文字数を切ると、付箋を広げても続きが表示されなくなる。
+                Title = lines[0].Trim();
             }
             else
             {

@@ -131,11 +131,9 @@
                         </Grid.ColumnDefinitions>
 
                         <!-- タイトル（折りたたみ時・展開時ともに1行目テキストを表示） -->
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock x:Name="TitleTextBlock" Text="新規メモ" FontWeight="SemiBold" FontSize="13"
-                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="120"
-                                       ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
-                        </StackPanel>
+                        <TextBlock x:Name="TitleTextBlock" Grid.Column="0" Text="新規メモ" FontWeight="SemiBold" FontSize="13"
+                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,6,0"
+                                   ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
 
                         <!-- 操作ツールボタン群 -->
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
