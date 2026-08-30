@@ -448,11 +448,6 @@ namespace Fusen.Views
                     BtnList_Click(this, new RoutedEventArgs());
                     e.Handled = true;
                 }
-                else if (e.Key == Key.W)
-                {
-                    BtnDelete_Click(this, new RoutedEventArgs());
-                    e.Handled = true;
-                }
             }
         }
 
