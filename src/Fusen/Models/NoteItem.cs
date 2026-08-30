@@ -16,6 +16,7 @@ namespace Fusen.Models
         private double _foldedHeight = 42;
         private bool _isPinned = false;
         private bool _isVisible = true;
+        private bool _isPreview = false;
         private double _opacity = 1.0;
         private double _fontSize = 0;
         private string _colorTheme = "Yellow";
@@ -83,6 +84,15 @@ namespace Fusen.Models
         {
             get => _opacity;
             set => SetProperty(ref _opacity, value);
+        }
+
+        /// <summary>
+        /// Markdown プレビュー表示中かどうか。付箋ごとに保持し、起動時に復元する。
+        /// </summary>
+        public bool IsPreview
+        {
+            get => _isPreview;
+            set => SetProperty(ref _isPreview, value);
         }
 
         /// <summary>

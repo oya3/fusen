@@ -12,7 +12,7 @@
         Background="Transparent"
         ShowInTaskbar="False"
         MinWidth="200"
-        MinHeight="38"
+        MinHeight="30"
         Width="280"
         Height="300"
         LocationChanged="Window_LocationChanged"
@@ -123,7 +123,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- 1. ヘッダー / タイトルバー -->
-                <Border x:Name="HeaderBorder" Grid.Row="0" CornerRadius="7,7,0,0" Height="36"
+                <Border x:Name="HeaderBorder" Grid.Row="0" CornerRadius="7,7,0,0" Height="28"
                         MouseLeftButtonDown="Header_MouseLeftButtonDown">
                     <Grid Margin="6,0,4,0">
                         <Grid.ColumnDefinitions>
@@ -151,6 +151,12 @@
                             <!-- カラーパレット 🎨 -->
                             <Button Style="{StaticResource HeaderButtonStyle}" ToolTip="付箋の色を変更" Click="BtnColor_Click">
                                 <TextBlock Text="🎨" FontSize="11" />
+                            </Button>
+
+                            <!-- Markdownプレビュー 👁 / 編集へ戻る ✏ -->
+                            <Button x:Name="BtnPreview" Style="{StaticResource HeaderButtonStyle}"
+                                    ToolTip="Markdownプレビュー" Click="BtnPreview_Click">
+                                <TextBlock x:Name="PreviewIcon" Text="👁" FontSize="11" />
                             </Button>
 
                             <!-- 折りたたみ / 展開 ▲ / ▼ -->
@@ -198,6 +204,18 @@
                             </Style>
                         </RichTextBox.Resources>
                     </RichTextBox>
+
+                    <!-- Markdownプレビュー（読み取り専用・編集用とは別の FlowDocument を表示する） -->
+                    <FlowDocumentScrollViewer x:Name="PreviewViewer"
+                                              Visibility="Collapsed"
+                                              Margin="8,4,8,8"
+                                              Padding="0"
+                                              Background="Transparent"
+                                              BorderThickness="0"
+                                              IsToolBarVisible="False"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              Hyperlink.RequestNavigate="PreviewViewer_RequestNavigate" />
                 </Grid>
 
                 <!-- 3. インクリメンタル検索バー（Ctrl+S / Ctrl+R 中のみ表示） -->

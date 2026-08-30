@@ -28,6 +28,13 @@ namespace Fusen.Views
         /// <summary>fusen.ini で bash モードが有効なときだけ生成される。無効時は null。</summary>
         private readonly BashKeyHandler? _bashKeys;
 
+        /// <summary>
+        /// 折りたたみ時のウィンドウ高。
+        /// NoteWindow.xaml の HeaderBorder の Height(28) と、外周 Grid のマージン(8+8) の合計。
+        /// ヘッダーの高さを変えたらここも合わせること。
+        /// </summary>
+        private const double FoldedWindowHeight = 44;
+
         // Windows API: WM_NCHITTEST 用定数
         private const int WM_NCHITTEST = 0x0084;
         private const int HTLEFT = 10;
@@ -198,6 +205,9 @@ namespace Fusen.Views
             // 本文を読み込んだ後に文字サイズを適用する（読み込んだ XAML 側の指定を上書きするため）
             ApplyFontSize(ResolveFontSize());
 
+            // 本文が確定してからでないと Markdown を描画できないため、ここで復元する
+            ApplyPreviewState(Note.IsPreview);
+
             UpdateTitleDisplay();
 
             // 折りたたみ状態の適用
@@ -261,6 +271,49 @@ namespace Fusen.Views
             range.ApplyPropertyValue(TextElement.FontSizeProperty, size);
         }
 
+        /// <summary>
+        /// Markdown プレビューの表示・非表示を切り替える。
+        ///
+        /// プレビューは編集用の RichTextBox とは別の FlowDocument を作って表示する。
+        /// 同じ文書に描画すると TextChanged が走り、整形結果で contentXaml が上書きされて
+        /// 元の Markdown ソースが失われるため、編集側の文書には一切触れない。
+        /// </summary>
+        public void ApplyPreviewState(bool isPreview)
+        {
+            if (isPreview)
+            {
+                var theme = NoteColorTheme.GetTheme(Note.ColorTheme);
+                PreviewViewer.Document = MarkdownRenderer.Render(
+                    Note.PlainText, ResolveFontSize(), theme.ForegroundBrush);
+
+                if (!string.IsNullOrWhiteSpace(AppConfig.Instance.FontFamily))
+                {
+                    try
+                    {
+                        PreviewViewer.Document.FontFamily =
+                            new System.Windows.Media.FontFamily(AppConfig.Instance.FontFamily);
+                    }
+                    catch { }
+                }
+
+                // プレビュー中は検索できないので終了させる
+                _bashKeys?.EndSearch();
+
+                NoteRichTextBox.Visibility = Visibility.Collapsed;
+                PreviewViewer.Visibility = Visibility.Visible;
+                PreviewIcon.Text = "✏";
+                BtnPreview.ToolTip = "編集に戻る";
+            }
+            else
+            {
+                PreviewViewer.Visibility = Visibility.Collapsed;
+                PreviewViewer.Document = null;
+                NoteRichTextBox.Visibility = Visibility.Visible;
+                PreviewIcon.Text = "👁";
+                BtnPreview.ToolTip = "Markdownプレビュー";
+            }
+        }
+
         public void ApplyColorTheme(string themeName)
         {
             Note.ColorTheme = themeName;
@@ -274,6 +327,12 @@ namespace Fusen.Views
             NoteRichTextBox.CaretBrush = theme.ForegroundBrush;
 
             FoldIcon.Foreground = theme.HeaderForegroundBrush;
+
+            // プレビュー中は配色を文字色から作っているため、描画し直す
+            if (!_isInitializing && Note.IsPreview)
+            {
+                ApplyPreviewState(true);
+            }
         }
 
         public void ToggleFold(bool? forceFold = null)
@@ -299,10 +358,10 @@ namespace Fusen.Views
                 _bashKeys?.EndSearch();
 
                 ContentArea.Visibility = Visibility.Collapsed;
-                // ヘッダー + マージン(8+8) = 52
-                MinHeight = 52;
-                MaxHeight = 52;
-                Height = 52;
+                // ヘッダー(28) + ドロップシャドウ用マージン(8+8) = 44
+                MinHeight = FoldedWindowHeight;
+                MaxHeight = FoldedWindowHeight;
+                Height = FoldedWindowHeight;
                 FoldIcon.Text = "▼";
                 BtnFold.ToolTip = "展開する";
                 MainBorder.CornerRadius = new CornerRadius(8);
@@ -441,6 +500,11 @@ namespace Fusen.Views
             Note.FontSize = newSize;
             ApplyFontSize(newSize);
 
+            if (Note.IsPreview)
+            {
+                ApplyPreviewState(true);
+            }
+
             NoteManager.Instance.RequestAutoSave();
         }
 
@@ -479,6 +543,13 @@ namespace Fusen.Views
         private void BtnFold_Click(object sender, RoutedEventArgs e)
         {
             ToggleFold();
+        }
+
+        private void BtnPreview_Click(object sender, RoutedEventArgs e)
+        {
+            Note.IsPreview = !Note.IsPreview;
+            ApplyPreviewState(Note.IsPreview);
+            NoteManager.Instance.RequestAutoSave();
         }
 
         private void BtnDelete_Click(object sender, RoutedEventArgs e)
@@ -587,6 +658,25 @@ namespace Fusen.Views
             }
 
             SearchBar.Visibility = Visibility.Visible;
+        }
+
+        /// <summary>プレビュー内のリンクは既定のブラウザで開く。</summary>
+        private void PreviewViewer_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = e.Uri.ToString(),
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[NoteWindow] RequestNavigate error: {ex.Message}");
+            }
+
+            e.Handled = true;
         }
 
         private void OnPasteCommand(object sender, DataObjectPastingEventArgs e)
