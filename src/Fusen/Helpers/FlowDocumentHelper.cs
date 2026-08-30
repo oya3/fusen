@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -110,8 +111,6 @@ namespace Fusen.Helpers
                 {
                     Source = bitmapSource,
                     Stretch = Stretch.Uniform,
-                    MaxWidth = 240,
-                    MaxHeight = 300,
                     Margin = new Thickness(0, 4, 0, 4),
                     Tag = imageFileName,
                     Cursor = System.Windows.Input.Cursors.Hand
@@ -142,6 +141,75 @@ namespace Fusen.Helpers
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[FlowDocumentHelper] InsertImage error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 本文中の画像を、付箋の幅に収まる大きさへ調整する。
+        ///
+        /// 固定の最大幅を持たせると、付箋を広げても画像が小さいままになり、
+        /// 狭めると本文からはみ出す。リサイズのたびに呼び直して追従させる。
+        ///
+        /// 元のサイズより大きくは引き伸ばさない（拡大するとぼやけるため）。
+        /// 高さの上限は設けず、縦横比は幅に従って決まるようにする。
+        ///
+        /// バインディングを使わないのは、本文が XAML として保存・復元されるため。
+        /// バインディング式は保存時に失われ、復元後は追従しなくなる。
+        /// </summary>
+        public static void ApplyResponsiveImageSize(FlowDocument doc, double availableWidth)
+        {
+            if (doc == null || availableWidth <= 0 || double.IsNaN(availableWidth)) return;
+
+            foreach (var image in EnumerateImages(doc.Blocks))
+            {
+                double naturalWidth = (image.Source as BitmapSource)?.Width ?? 0;
+
+                image.Stretch = Stretch.Uniform;
+                image.MaxWidth = naturalWidth > 0
+                    ? Math.Min(naturalWidth, availableWidth)
+                    : availableWidth;
+                image.MaxHeight = double.PositiveInfinity;
+            }
+        }
+
+        /// <summary>本文中の Image を、入れ子のブロックも含めて列挙する。</summary>
+        private static IEnumerable<Image> EnumerateImages(BlockCollection blocks)
+        {
+            foreach (var block in blocks)
+            {
+                switch (block)
+                {
+                    case BlockUIContainer container when container.Child is Image image:
+                        yield return image;
+                        break;
+
+                    case Paragraph paragraph:
+                        foreach (var inline in paragraph.Inlines)
+                        {
+                            if (inline is InlineUIContainer inlineContainer && inlineContainer.Child is Image inlineImage)
+                            {
+                                yield return inlineImage;
+                            }
+                        }
+                        break;
+
+                    case Section section:
+                        foreach (var nested in EnumerateImages(section.Blocks))
+                        {
+                            yield return nested;
+                        }
+                        break;
+
+                    case List list:
+                        foreach (var listItem in list.ListItems)
+                        {
+                            foreach (var nested in EnumerateImages(listItem.Blocks))
+                            {
+                                yield return nested;
+                            }
+                        }
+                        break;
+                }
             }
         }
 

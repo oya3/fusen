@@ -208,6 +208,10 @@ namespace Fusen.Views
             // 本文が確定してからでないと Markdown を描画できないため、ここで復元する
             ApplyPreviewState(Note.IsPreview);
 
+            // 復元した画像を現在の付箋幅に合わせる。
+            // レイアウトが済むまで ViewportWidth が確定しないため、描画完了後に実行する。
+            Dispatcher.BeginInvoke(new Action(UpdateImageSizes), System.Windows.Threading.DispatcherPriority.Loaded);
+
             UpdateTitleDisplay();
 
             // 折りたたみ状態の適用
@@ -397,6 +401,30 @@ namespace Fusen.Views
                     Note.Height = _expandedHeight;
                 }
             }
+        }
+
+        /// <summary>
+        /// 本文中の画像に使える横幅。スクロールバーや余白を除いた実際の表示幅を返す。
+        /// </summary>
+        private double GetContentWidthForImages()
+        {
+            double width = NoteRichTextBox.ViewportWidth;
+
+            if (double.IsNaN(width) || width <= 0)
+            {
+                width = NoteRichTextBox.ActualWidth
+                        - NoteRichTextBox.Padding.Left - NoteRichTextBox.Padding.Right
+                        - NoteRichTextBox.BorderThickness.Left - NoteRichTextBox.BorderThickness.Right;
+            }
+
+            // 丸め誤差で横スクロールバーが出ないよう、わずかに余裕をとる
+            return Math.Max(40, width - 4);
+        }
+
+        /// <summary>本文中の画像を現在の付箋幅に合わせる。</summary>
+        private void UpdateImageSizes()
+        {
+            FlowDocumentHelper.ApplyResponsiveImageSize(NoteRichTextBox.Document, GetContentWidthForImages());
         }
 
         private void UpdateTitleDisplay()
@@ -693,6 +721,7 @@ namespace Fusen.Views
                         if (!string.IsNullOrEmpty(fileName))
                         {
                             FlowDocumentHelper.InsertImage(NoteRichTextBox, imageSource, fileName);
+                            UpdateImageSizes();
                             e.CancelCommand();
                             e.Handled = true;
                             return;
@@ -721,6 +750,12 @@ namespace Fusen.Views
             {
                 SyncModelFromWindow();
                 NoteManager.Instance.RequestAutoSave();
+            }
+
+            // 幅が変わったら画像を追従させる（折りたたみ中は本文が隠れているので不要）
+            if (e.WidthChanged && !Note.IsFolded)
+            {
+                UpdateImageSizes();
             }
         }
     }
