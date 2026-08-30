@@ -152,11 +152,6 @@
                                 <TextBlock Text="🎨" FontSize="11" />
                             </Button>
 
-                            <!-- メモ一覧 📋 -->
-                            <Button Style="{StaticResource HeaderButtonStyle}" ToolTip="メモ一覧を開く (Ctrl+L)" Click="BtnList_Click">
-                                <TextBlock Text="📋" FontSize="11" />
-                            </Button>
-
                             <!-- 折りたたみ / 展開 ▲ / ▼ -->
                             <Button x:Name="BtnFold" Style="{StaticResource HeaderButtonStyle}" ToolTip="折りたたみ / 展開 (ダブルクリックでも切替)" Click="BtnFold_Click">
                                 <TextBlock x:Name="FoldIcon" Text="▲" FontSize="11" FontWeight="Bold" Foreground="{Binding ElementName=TitleTextBlock, Path=Foreground}" />

@@ -52,7 +52,7 @@ namespace Fusen.Services
                     ColorTheme = config.DefaultColorTheme,
                     Opacity = config.DefaultOpacity,
                     IsPinned = config.DefaultPinned,
-                    PlainText = "ようこそ fusen へ！\n- 上部バーをダブルクリックで折りたたみ\n- Ctrl + V で画像を直接貼り付け\n- ＋ ボタンで新規付箋を追加\n- 📋 ボタンで一覧マネージャーを表示",
+                    PlainText = "ようこそ fusen へ！\n- 上部バーをダブルクリックで折りたたみ\n- Ctrl + V で画像を直接貼り付け\n- ＋ ボタンで新規付箋を追加\n- Ctrl + L またはトレイアイコンで一覧マネージャーを表示",
                     IsVisible = true
                 };
                 defaultNote.UpdateTitleFromPlainText();
