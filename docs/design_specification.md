@@ -77,7 +77,7 @@
 | `Ctrl + Y` | 直前にキルしたテキストを貼り付け（ヤンク） |
 | `Ctrl + D` / `Ctrl + H` | 1文字削除（Delete / Backspace） |
 | `Ctrl + T` | 前後の文字を入れ替え（行末では直前の2文字） |
-| `Ctrl + _` / `Ctrl + Z` | アンドゥ |
+| `Ctrl + _` / `Ctrl + /` / `Ctrl + Z` | アンドゥ |
 | `Ctrl + S` / `Ctrl + R` | インクリメンタル検索（前方 / 後方）。§2.3 参照 |
 | `Ctrl + G` / `ESC` | マーク・選択のキャンセル |
 
@@ -93,6 +93,8 @@
   * `Ctrl + L`（メモ一覧）は readline 側に対応する操作を割り当てないため、そのまま残る。
 * **キー配列**: `Ctrl + @` は JIS 配列の `@` 単独キー（`Key.Oem3`）と US 配列の `Shift + 2` の双方を受ける。
   `Ctrl + _` は `Key.OemMinus` と `Key.OemBackslash` の双方を受ける。
+  `Ctrl + /`（`Key.OemQuestion`）も同じアンドゥに割り当てる。端末では `Ctrl + _` と同じ制御コードになるため、
+  Emacs / readline でも両者は同じ操作として扱われる。
   `Ctrl + Space` は日本語IMEに横取りされる環境があるため、`Ctrl + @` を代替として用意している。
 
 ### 2.3. インクリメンタル検索（isearch）

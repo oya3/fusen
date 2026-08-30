@@ -276,6 +276,8 @@ namespace Fusen.Helpers
                 // Ctrl+_ : US配列では Shift+'-'、JIS配列では Shift+'ろ'
                 case Key.OemMinus:
                 case Key.OemBackslash:
+                // Ctrl+/ : 端末では Ctrl+_ と同じ制御コードになるため、Emacs でも同じアンドゥに割り当てられている
+                case Key.OemQuestion:
                     Undo();
                     return true;
             }
