@@ -62,6 +62,10 @@ namespace Fusen.Services
             {
                 foreach (var note in loadedNotes)
                 {
+                    // title は plainText の派生値。notes.json 内では plainText より後ろに
+                    // 位置するため、読み込むと保存済みの title が復元後の値を上書きしてしまう。
+                    // 古い規則で切り詰められた title が残り続けないよう、必ず作り直す。
+                    note.UpdateTitleFromPlainText();
                     Notes.Add(note);
                 }
             }
