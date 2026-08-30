@@ -119,6 +119,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" /> <!-- ヘッダー (折りたたみ時はここだけ表示) -->
                     <RowDefinition Height="*" />    <!-- エディタ本文 (折りたたみ時はCollapsed) -->
+                    <RowDefinition Height="Auto" /> <!-- インクリメンタル検索バー (検索中のみ表示) -->
                 </Grid.RowDefinitions>
 
                 <!-- 1. ヘッダー / タイトルバー -->
@@ -138,7 +139,7 @@
                         <!-- 操作ツールボタン群 -->
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                             <!-- 新規作成 ＋ -->
-                            <Button Style="{StaticResource HeaderButtonStyle}" ToolTip="新しい付箋を作成 (Ctrl+N)" Click="BtnNew_Click">
+                            <Button Style="{StaticResource HeaderButtonStyle}" ToolTip="新しい付箋を作成 (Alt+N)" Click="BtnNew_Click">
                                 <TextBlock Text="＋" FontSize="14" FontWeight="Bold" Foreground="{Binding ElementName=TitleTextBlock, Path=Foreground}" />
                             </Button>
 
@@ -180,7 +181,9 @@
                                  AcceptsTab="True"
                                  SpellCheck.IsEnabled="False"
                                  TextChanged="NoteRichTextBox_TextChanged"
-                                 PreviewKeyDown="NoteRichTextBox_PreviewKeyDown">
+                                 PreviewKeyDown="NoteRichTextBox_PreviewKeyDown"
+                                 PreviewTextInput="NoteRichTextBox_PreviewTextInput"
+                                 LostKeyboardFocus="NoteRichTextBox_LostKeyboardFocus">
                         <!-- 段落の既定マージンを除去（改行ごとの余分な行間を解消） -->
                         <RichTextBox.Resources>
                             <Style TargetType="{x:Type Paragraph}">
@@ -196,6 +199,19 @@
                         </RichTextBox.Resources>
                     </RichTextBox>
                 </Grid>
+
+                <!-- 3. インクリメンタル検索バー（Ctrl+S / Ctrl+R 中のみ表示） -->
+                <Border x:Name="SearchBar" Grid.Row="2" Visibility="Collapsed"
+                        CornerRadius="0,0,7,7" Padding="10,5">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="SearchLabelTextBlock" Text="I-search:" FontSize="11"
+                                   FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <TextBlock x:Name="SearchQueryTextBlock" FontSize="11.5" Margin="6,0,0,0"
+                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                        <TextBlock x:Name="SearchStatusTextBlock" FontSize="10" Margin="8,0,0,0"
+                                   VerticalAlignment="Center" Foreground="#D32F2F" />
+                    </StackPanel>
+                </Border>
             </Grid>
         </Border>
 

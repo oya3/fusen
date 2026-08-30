@@ -28,6 +28,9 @@ namespace Fusen.Services
         public int BackupGenerations { get; set; } = 5;
         public int BackupIntervalMinutes { get; set; } = 10;
 
+        // [Bash] 設定項目
+        public bool BashModeEnabled { get; set; } = true;
+
         public void Initialize()
         {
             // 設定ファイルの検索とロード
@@ -108,6 +111,9 @@ namespace Fusen.Services
             BackupGenerations = ini.GetInt("Backup", "Generations", 5, 1, 100);
             BackupIntervalMinutes = ini.GetInt("Backup", "IntervalMinutes", 10, 1, 1440);
 
+            // [Bash] セクション（既定で有効。明示的に false を書いた場合のみ無効になる）
+            BashModeEnabled = ini.GetBool("Bash", "Enabled", true);
+
             // テーマの初期化・カスタムテーマ登録
             NoteColorTheme.InitializeThemes(ini);
         }
@@ -181,6 +187,21 @@ Generations = 5
 ; 稼働中にバックアップを作成する間隔（分, 1 〜 1440）
 ; 起動時には、この間隔に関わらず必ず 1 世代作成されます。
 IntervalMinutes = 10
+
+; ------------------------------------------------------------------------------
+; [Bash] bash (GNU Readline / Emacs スタイル) キーバインド
+; 付箋の本文編集で Ctrl+A / Ctrl+E / Ctrl+K / Ctrl+Y などの readline 系の
+; キー操作が使えます。既定で有効です。不要な場合は Enabled = false にしてください。
+;
+; 【注意】
+; - 有効な間は Ctrl+N が「1行下へ移動」となり、新規付箋作成には使えません。
+;   新規作成は Alt+N、付箋の ＋ ボタン、またはトレイアイコンから行ってください。
+; - Ctrl+B / Ctrl+E / Ctrl+U による太字・中央揃え・下線も使えません。
+; - Ctrl+Space は日本語IMEに横取りされる環境があります。その場合は Ctrl+@ を使ってください。
+; ------------------------------------------------------------------------------
+[Bash]
+; bash キーバインドを有効にするかどうか (true / false)
+Enabled = true
 
 ; ------------------------------------------------------------------------------
 ; [CustomTheme] カスタムカラー設定

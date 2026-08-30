@@ -25,6 +25,9 @@ namespace Fusen.Views
         private bool _updatingFontSizeSlider = false;
         private double _expandedHeight = 300;
 
+        /// <summary>fusen.ini で bash モードが有効なときだけ生成される。無効時は null。</summary>
+        private readonly BashKeyHandler? _bashKeys;
+
         // Windows API: WM_NCHITTEST 用定数
         private const int WM_NCHITTEST = 0x0084;
         private const int HTLEFT = 10;
@@ -65,6 +68,13 @@ namespace Fusen.Views
                     NoteRichTextBox.FontFamily = new System.Windows.Media.FontFamily(AppConfig.Instance.FontFamily);
                 }
                 catch { }
+            }
+
+            // bash (Readline) キーバインドは設定で有効にした場合のみ接続する
+            if (AppConfig.Instance.BashModeEnabled)
+            {
+                _bashKeys = new BashKeyHandler(NoteRichTextBox);
+                _bashKeys.SearchStateChanged += UpdateSearchBar;
             }
 
             // クリップボード貼り付けハンドラの設定
@@ -285,6 +295,9 @@ namespace Fusen.Views
                     Note.Height = _expandedHeight;
                 }
 
+                // 本文が隠れる以上、検索も続けられないので確定して終了する
+                _bashKeys?.EndSearch();
+
                 ContentArea.Visibility = Visibility.Collapsed;
                 // ヘッダー + マージン(8+8) = 52
                 MinHeight = 52;
@@ -490,6 +503,25 @@ namespace Fusen.Views
 
         private void NoteRichTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            // bash モードのキーバインドを先に処理する。
+            // Ctrl+N は bash では「1行下」なので、有効時は新規付箋作成より編集操作を優先する。
+            if (_bashKeys != null && _bashKeys.HandleKey(e))
+            {
+                e.Handled = true;
+                return;
+            }
+
+            // Alt+N: 新しい付箋を作成。
+            // bash モードでは Ctrl+N がカーソル移動に使われるため、その影響を受けない代替として常に用意する。
+            // Alt 併用時、WPF は e.Key に Key.System を入れ、実際のキーを e.SystemKey に入れる。
+            var altKey = e.Key == Key.System ? e.SystemKey : e.Key;
+            if (Keyboard.Modifiers == ModifierKeys.Alt && altKey == Key.N)
+            {
+                BtnNew_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+                return;
+            }
+
             // ショートカットキー操作
             if (Keyboard.Modifiers == ModifierKeys.Control)
             {
@@ -504,6 +536,57 @@ namespace Fusen.Views
                     e.Handled = true;
                 }
             }
+        }
+
+        /// <summary>
+        /// インクリメンタル検索中は、入力された文字を本文ではなく検索文字列へ送る。
+        /// PreviewKeyDown ではなくここで受けるのは、記号・かなや IME の確定文字を正しく取るため。
+        /// </summary>
+        private void NoteRichTextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            if (_bashKeys != null && _bashKeys.HandleTextInput(e.Text))
+            {
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>フォーカスが外れたら検索は確定して終了する。</summary>
+        private void NoteRichTextBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        {
+            _bashKeys?.EndSearch();
+        }
+
+        /// <summary>検索バーの表示を現在の検索状態に合わせる。</summary>
+        private void UpdateSearchBar(SearchDisplayState state)
+        {
+            if (!state.IsActive)
+            {
+                SearchBar.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            var theme = NoteColorTheme.GetTheme(Note.ColorTheme);
+            SearchBar.Background = theme.HeaderBrush;
+            SearchLabelTextBlock.Foreground = theme.HeaderForegroundBrush;
+            SearchQueryTextBlock.Foreground = theme.HeaderForegroundBrush;
+
+            SearchLabelTextBlock.Text = state.Forward ? "I-search:" : "I-search(逆):";
+            SearchQueryTextBlock.Text = state.Query;
+
+            if (!state.Found)
+            {
+                SearchStatusTextBlock.Text = "見つかりません";
+            }
+            else if (state.Wrapped)
+            {
+                SearchStatusTextBlock.Text = "折り返し";
+            }
+            else
+            {
+                SearchStatusTextBlock.Text = string.Empty;
+            }
+
+            SearchBar.Visibility = Visibility.Visible;
         }
 
         private void OnPasteCommand(object sender, DataObjectPastingEventArgs e)
