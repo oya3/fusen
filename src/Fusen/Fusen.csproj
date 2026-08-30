@@ -15,6 +15,14 @@
     <None Include="../../fusen.ini" Link="fusen.ini">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+
+    <!-- 自動起動の設定スクリプト。配布フォルダに同梱するため出力先へコピーする。 -->
+    <None Include="../../setup-autostart.ps1" Link="setup-autostart.ps1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="../../setup-autostart.bat" Link="setup-autostart.bat">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

@@ -140,6 +140,8 @@ fusen/
 ├── README.md                     # 利用者向けドキュメント
 ├── build.bat                     # dotnet publish を bin/publish へ実行
 ├── run.bat                       # dotnet run による開発実行
+├── setup-autostart.ps1           # 自動起動の設定/解除（配布フォルダへ同梱）
+├── setup-autostart.bat           # 上記のダブルクリック用ランチャ（同梱）
 ├── docs/
 │   └── design_specification.md   # 本設計書
 ├── data/                         # アプリケーションデータ（完全ポータブル・Git管理外）
@@ -150,7 +152,8 @@ fusen/
 │   └── images/                   # 貼り付けられた画像ファイル（PNG）
 │       ├── {note_id}_{yyyyMMdd_HHmmss}_{guid:N}.png
 │       └── ...
-├── bin/publish/                  # build.bat の出力先（Git管理外）
+├── bin/publish/                  # build.bat の出力先（Git管理外）。fusen.exe / fusen.ini /
+│                                 # Markdig.dll / setup-autostart.{ps1,bat} が入る
 └── src/
     └── Fusen/
         ├── Fusen.csproj                                 # 直下の fusen.ini をリンク参照で出力へコピー
@@ -380,8 +383,11 @@ fusen/
 ## 6. 非機能要件・ポータブル方針
 
 1. **ゼロ・システム侵食**:
-   - レジストリ、`%APPDATA%` は一切不使用。
+   - アプリ本体はレジストリ、`%APPDATA%` を一切使用しない。
    - 実行ファイル（またはスクリプト）と同じディレクトリの `data/` 配下ですべて完結。
+   - **唯一の例外が自動起動の設定（§7）**。ユーザーが明示的に `setup-autostart` を実行した
+     ときにのみ、スタートアップフォルダにショートカットを1つ置く。アプリ自身が起動時や
+     終了時に書き込むことはなく、`-Remove` でいつでも元に戻せる。
 2. **Crash-safe な自動保存**:
    - `notes.json` 更新時は一時ファイル（`notes.json.tmp`）へ書き込んだ後にアトミックリネームを行い、破損を防ぐ。
    - デバウンス（400ms）による快適な入力レスポンス。テキスト入力・移動・リサイズ・折りたたみ・色/不透明度/文字サイズ変更がすべて同じデバウンスを共有する。
@@ -403,3 +409,26 @@ fusen/
      `notes_corrupt_*.json` として `data/backups/` に保管し、結果は付箋表示後にダイアログで通知する。
 4. **完全なポータビリティ**:
    - フォルダを丸ごと別のPCやUSBメモリにコピーしても、設定やデータがそのまま移行可能。
+
+---
+
+## 7. 自動起動（任意）
+
+Windows のログオン時に fusen を起動させたい場合に使う。既定では設定されない。
+
+* **設定**: 配布フォルダ内の `setup-autostart.bat` を実行する（`setup-autostart.ps1 -Remove` で解除）。
+* **配置先**: `[Environment]::GetFolderPath('Startup')` で解決した、**実行したユーザー自身の**
+  スタートアップフォルダ（通常 `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup`）に
+  `fusen.lnk` を作成する。環境変数やユーザー名を直書きしないため、どのユーザーで実行しても、
+  またフォルダリダイレクトが設定された環境でも正しい場所になる。
+* **ショートカットの内容**: 参照先は「スクリプトが置かれているフォルダの `fusen.exe`」。
+  作業フォルダも同じ場所にする（ポータブル動作のため `data/` と `fusen.ini` を実行ファイルと
+  同じ場所から読む）。アイコンは `fusen.exe` のものを使う。
+* **べき等**: 既に設定済みの場合は同じ場所を上書き更新する。ショートカットが増えることはない。
+  未設定の状態で `-Remove` しても、何もせず正常終了する。
+* **`fusen.exe` が同じフォルダに無い場合**は、ショートカットを作らずに終了コード 1 で終わる。
+* **`.ps1` は UTF-8 BOM 付きで保存する**。`.bat` から起動する `powershell` は Windows PowerShell 5.1 で、
+  BOM の無い `.ps1` をシステムの ANSI コードページとして読むため、BOM が無いと日本語が化けて
+  構文エラーになる。
+* **同梱方法**: `Fusen.csproj` から `fusen.ini` と同じくリンク参照し、`CopyToOutputDirectory` で
+  発行先へコピーする。
