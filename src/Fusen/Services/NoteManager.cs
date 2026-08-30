@@ -51,6 +51,7 @@ namespace Fusen.Services
                     Height = Math.Max(320, config.DefaultHeight),
                     ColorTheme = config.DefaultColorTheme,
                     Opacity = config.DefaultOpacity,
+                    FontSize = config.FontSize,
                     IsPinned = config.DefaultPinned,
                     PlainText = "ようこそ fusen へ！\n- 上部バーをダブルクリックで折りたたみ\n- Ctrl + V で画像を直接貼り付け\n- ＋ ボタンで新規付箋を追加\n- Ctrl + L またはトレイアイコンで一覧マネージャーを表示",
                     IsVisible = true
@@ -169,6 +170,7 @@ namespace Fusen.Services
                 Height = config.DefaultHeight,
                 ColorTheme = config.DefaultColorTheme,
                 Opacity = config.DefaultOpacity,
+                FontSize = config.FontSize,
                 IsPinned = config.DefaultPinned,
                 PlainText = initialText ?? string.Empty,
                 IsVisible = true

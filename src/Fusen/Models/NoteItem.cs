@@ -17,6 +17,7 @@ namespace Fusen.Models
         private bool _isPinned = false;
         private bool _isVisible = true;
         private double _opacity = 1.0;
+        private double _fontSize = 0;
         private string _colorTheme = "Yellow";
         private string _contentXaml = string.Empty;
         private string _plainText = string.Empty;
@@ -82,6 +83,15 @@ namespace Fusen.Models
         {
             get => _opacity;
             set => SetProperty(ref _opacity, value);
+        }
+
+        /// <summary>
+        /// 本文の文字サイズ。0以下の場合は fusen.ini の既定値を使う（未設定を表す）。
+        /// </summary>
+        public double FontSize
+        {
+            get => _fontSize;
+            set => SetProperty(ref _fontSize, value);
         }
 
         public string ColorTheme

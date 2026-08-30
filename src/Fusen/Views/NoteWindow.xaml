@@ -231,6 +231,20 @@
                         <Button Style="{StaticResource PresetOpacityButtonStyle}" Content="70%" Tag="0.7" Click="BtnPresetOpacity_Click" ToolTip="半透明" />
                         <Button Style="{StaticResource PresetOpacityButtonStyle}" Content="50%" Tag="0.5" Click="BtnPresetOpacity_Click" ToolTip="高透過" />
                     </UniformGrid>
+
+                    <!-- セパレーター -->
+                    <Separator Background="#F3F4F6" Margin="0,10,0,8" />
+
+                    <!-- 4. 文字サイズスライダー -->
+                    <Grid Margin="2,0,2,4">
+                        <TextBlock Text="文字サイズ" FontSize="11" FontWeight="SemiBold" Foreground="#6B7280" VerticalAlignment="Center" />
+                        <TextBlock x:Name="FontSizeValueTextBlock" Text="13.5" FontSize="11" FontWeight="Bold" Foreground="#0078D4" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                    </Grid>
+                    <Slider x:Name="FontSizeSlider"
+                            Minimum="9" Maximum="36" SmallChange="0.5" LargeChange="2"
+                            TickFrequency="0.5" IsSnapToTickEnabled="True"
+                            ValueChanged="FontSizeSlider_ValueChanged"
+                            Margin="2,2,2,0" Cursor="Hand" />
                 </StackPanel>
             </Border>
         </Popup>

@@ -22,6 +22,7 @@ namespace Fusen.Views
         public NoteItem Note { get; }
         private bool _isInitializing = true;
         private bool _updatingOpacitySlider = false;
+        private bool _updatingFontSizeSlider = false;
         private double _expandedHeight = 300;
 
         // Windows API: WM_NCHITTEST 用定数
@@ -55,11 +56,8 @@ namespace Fusen.Views
             UpdatePinState();
             ApplyColorTheme(Note.ColorTheme);
 
-            // フォント設定の適用
-            if (AppConfig.Instance.FontSize > 0)
-            {
-                NoteRichTextBox.FontSize = AppConfig.Instance.FontSize;
-            }
+            // フォント設定の適用（本文はまだ読み込まれていないため、コントロール側のみ）
+            NoteRichTextBox.FontSize = ResolveFontSize();
             if (!string.IsNullOrWhiteSpace(AppConfig.Instance.FontFamily))
             {
                 try
@@ -187,6 +185,9 @@ namespace Fusen.Views
             // 段落マージンを除去して行間を詰める
             FlowDocumentHelper.NormalizeParagraphSpacing(NoteRichTextBox.Document);
 
+            // 本文を読み込んだ後に文字サイズを適用する（読み込んだ XAML 側の指定を上書きするため）
+            ApplyFontSize(ResolveFontSize());
+
             UpdateTitleDisplay();
 
             // 折りたたみ状態の適用
@@ -221,6 +222,33 @@ namespace Fusen.Views
                 btn.Click += ColorOption_Click;
                 ColorPaletteStackPanel.Children.Add(btn);
             }
+        }
+
+        /// <summary>
+        /// この付箋に適用する文字サイズを決める。付箋ごとの値が未設定なら fusen.ini の既定値を使う。
+        /// </summary>
+        private static double ResolveFontSizeFor(NoteItem note)
+        {
+            double size = note.FontSize > 0 ? note.FontSize : AppConfig.Instance.FontSize;
+            return size > 0 ? Math.Clamp(size, 9.0, 36.0) : 13.5;
+        }
+
+        private double ResolveFontSize() => ResolveFontSizeFor(Note);
+
+        /// <summary>
+        /// 文字サイズを本文へ適用する。
+        ///
+        /// RichTextBox の本文は XAML として保存され、その際に FontSize が各要素へ焼き込まれる。
+        /// そのためコントロールの FontSize を変えるだけでは既存のテキストに反映されない。
+        /// 文書全体に対して明示的に適用し、保存時の XAML にも新しい値が載るようにする。
+        /// </summary>
+        private void ApplyFontSize(double size)
+        {
+            NoteRichTextBox.FontSize = size;
+
+            var doc = NoteRichTextBox.Document;
+            var range = new TextRange(doc.ContentStart, doc.ContentEnd);
+            range.ApplyPropertyValue(TextElement.FontSizeProperty, size);
         }
 
         public void ApplyColorTheme(string themeName)
@@ -356,6 +384,14 @@ namespace Fusen.Views
             OpacityValueTextBlock.Text = $"{(int)OpacitySlider.Value}%";
             _updatingOpacitySlider = false;
 
+            // 現在の文字サイズをスライダーに同期
+            double currentFontSize = ResolveFontSize();
+
+            _updatingFontSizeSlider = true;
+            FontSizeSlider.Value = currentFontSize;
+            FontSizeValueTextBlock.Text = FormatFontSize(currentFontSize);
+            _updatingFontSizeSlider = false;
+
             ColorPickerPopup.IsOpen = true;
         }
 
@@ -372,6 +408,25 @@ namespace Fusen.Views
             double newOpacity = percent / 100.0;
             this.Opacity = Math.Clamp(newOpacity, 0.1, 1.0);
             Note.Opacity = this.Opacity;
+
+            NoteManager.Instance.RequestAutoSave();
+        }
+
+        private static string FormatFontSize(double size)
+            => size.ToString("0.#", CultureInfo.InvariantCulture);
+
+        private void FontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_updatingFontSizeSlider || _isInitializing) return;
+
+            double newSize = Math.Clamp(e.NewValue, 9.0, 36.0);
+            if (FontSizeValueTextBlock != null)
+            {
+                FontSizeValueTextBlock.Text = FormatFontSize(newSize);
+            }
+
+            Note.FontSize = newSize;
+            ApplyFontSize(newSize);
 
             NoteManager.Instance.RequestAutoSave();
         }
