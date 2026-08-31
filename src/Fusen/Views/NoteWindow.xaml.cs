@@ -384,6 +384,25 @@ namespace Fusen.Views
             }
         }
 
+        /// <summary>
+        /// ヘッダーが画面外にある場合だけ、掴める位置まで引き戻す。
+        /// 2画面目を取り外した後や解像度を変えた後は、保存された座標のまま表示しても
+        /// 付箋がどこにも見えず、移動する手段が無くなるため。見えている場合は動かさない
+        /// （一時的にモニタを外しただけの構成で、保存済みのレイアウトを壊さないため）。
+        /// </summary>
+        public void EnsureOnScreen()
+        {
+            if (ScreenHelper.IsHeaderVisible(Left, Top, Width, FoldedWindowHeight)) return;
+
+            double height = Note.IsFolded ? FoldedWindowHeight : Math.Max(120, _expandedHeight);
+            var (x, y) = ScreenHelper.ClampToVirtualScreen(Left, Top, Width, height);
+            Left = x;
+            Top = y;
+
+            SyncModelFromWindow();
+            NoteManager.Instance.RequestAutoSave();
+        }
+
         public void SyncModelFromWindow()
         {
             if (!_isInitializing)

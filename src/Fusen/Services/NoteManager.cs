@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Threading;
+using Fusen.Helpers;
 using Fusen.Models;
 using Fusen.Views;
 
@@ -156,11 +157,8 @@ namespace Fusen.Services
             double newX = x ?? (100 + (Notes.Count % 8) * 30);
             double newY = y ?? (100 + (Notes.Count % 8) * 30);
 
-            // デスクトップの表示領域内に収める
-            var screenWidth = SystemParameters.PrimaryScreenWidth;
-            var screenHeight = SystemParameters.PrimaryScreenHeight;
-            if (newX > screenWidth - config.DefaultWidth) newX = 100;
-            if (newY > screenHeight - config.DefaultHeight) newY = 100;
+            // 表示位置は全モニタを含む仮想デスクトップの内側へ寄せる
+            (newX, newY) = ScreenHelper.ClampToVirtualScreen(newX, newY, config.DefaultWidth, config.DefaultHeight);
 
             var note = new NoteItem
             {
@@ -254,6 +252,11 @@ namespace Fusen.Services
                 {
                     window.ToggleFold(false);
                 }
+
+                // 画面外にある付箋を「開く」ときは見える位置へ引き戻す。
+                // そのまま表示しても操作できず、一覧から辿り着く手段が無くなるため。
+                window.EnsureOnScreen();
+
                 window.Activate();
                 window.Topmost = true;
                 if (!note.IsPinned)
