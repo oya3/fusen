@@ -66,8 +66,6 @@ namespace Fusen.Helpers
             {
                 if (block is BlockUIContainer container && container.Child is Image img)
                 {
-                    AttachImageContextMenu(img, container);
-                    
                     // Tag にファイル名がある場合は最新パスから読み直す
                     if (img.Tag is string fileName && !string.IsNullOrEmpty(fileName))
                     {
@@ -120,8 +118,6 @@ namespace Fusen.Helpers
                 {
                     Margin = new Thickness(0, 4, 0, 4)
                 };
-
-                AttachImageContextMenu(image, container);
 
                 var caret = richTextBox.CaretPosition;
                 if (caret.Paragraph != null)
@@ -266,32 +262,5 @@ namespace Fusen.Helpers
         private static readonly Thickness ParagraphMargin = new Thickness(0);
         private static readonly Thickness ListMargin = new Thickness(0, 0, 0, 0);
         private static readonly Thickness ImageMargin = new Thickness(0, 2, 0, 2);
-
-        private static void AttachImageContextMenu(Image image, BlockUIContainer container)
-        {
-            var menu = new ContextMenu();
-            
-            var copyItem = new MenuItem { Header = "📋 画像をコピー" };
-            copyItem.Click += (s, e) =>
-            {
-                if (image.Source is BitmapSource bs)
-                {
-                    Clipboard.SetImage(bs);
-                }
-            };
-
-            var deleteItem = new MenuItem { Header = "🗑️ 画像を削除" };
-            deleteItem.Click += (s, e) =>
-            {
-                if (container.Parent is FlowDocument doc)
-                {
-                    doc.Blocks.Remove(container);
-                }
-            };
-
-            menu.Items.Add(copyItem);
-            menu.Items.Add(deleteItem);
-            image.ContextMenu = menu;
-        }
     }
 }

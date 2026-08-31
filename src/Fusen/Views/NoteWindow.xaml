@@ -189,7 +189,27 @@
                                  TextChanged="NoteRichTextBox_TextChanged"
                                  PreviewKeyDown="NoteRichTextBox_PreviewKeyDown"
                                  PreviewTextInput="NoteRichTextBox_PreviewTextInput"
-                                 LostKeyboardFocus="NoteRichTextBox_LostKeyboardFocus">
+                                 LostKeyboardFocus="NoteRichTextBox_LostKeyboardFocus"
+                                 ContextMenuOpening="NoteRichTextBox_ContextMenuOpening">
+                        <!-- 右クリックメニュー。RichTextBox 側に持たせるのは、文書内の Image に
+                             直接付けたメニューが IsDocumentEnabled="False"（既定）では開けないため。
+                             画像用の項目はカーソル下に画像があるときだけ表示する。 -->
+                        <RichTextBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="切り取り" Command="ApplicationCommands.Cut"
+                                          CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <MenuItem Header="コピー" Command="ApplicationCommands.Copy"
+                                          CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <MenuItem Header="貼り付け" Command="ApplicationCommands.Paste"
+                                          CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <Separator x:Name="ImageMenuSeparator" Visibility="Collapsed" />
+                                <MenuItem x:Name="CopyImageMenuItem" Header="📋 画像をコピー"
+                                          Visibility="Collapsed" Click="MenuCopyImage_Click" />
+                                <MenuItem x:Name="DeleteImageMenuItem" Header="🗑️ 画像を削除"
+                                          Visibility="Collapsed" Click="MenuDeleteImage_Click" />
+                            </ContextMenu>
+                        </RichTextBox.ContextMenu>
+
                         <!-- 段落の既定マージンを除去（改行ごとの余分な行間を解消） -->
                         <RichTextBox.Resources>
                             <Style TargetType="{x:Type Paragraph}">

@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Fusen.Helpers;
 using Fusen.Models;
@@ -672,6 +673,69 @@ namespace Fusen.Views
         private void NoteRichTextBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
         {
             _bashKeys?.EndSearch();
+        }
+
+        /// <summary>右クリックされた画像。メニューの項目を押したときの対象となる。</summary>
+        private Image? _contextMenuImage;
+
+        /// <summary>
+        /// 右クリックメニューを開く直前に、カーソル下の画像を調べて画像用の項目を出し入れする。
+        /// 文書内の Image に直接メニューを付ける方法は、RichTextBox の IsDocumentEnabled が
+        /// 既定の false だと埋め込み要素へマウス入力が渡らないため使えない。
+        /// </summary>
+        private void NoteRichTextBox_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+        {
+            // キーボード（メニューキー）から開かれた場合は座標が -1 になる。
+            // マウス位置は無関係な場所を指しているため、画像用の項目は出さない。
+            _contextMenuImage = (e.CursorLeft < 0 || e.CursorTop < 0)
+                ? null
+                : FindImageAt(Mouse.GetPosition(NoteRichTextBox));
+
+            var visibility = _contextMenuImage != null ? Visibility.Visible : Visibility.Collapsed;
+            ImageMenuSeparator.Visibility = visibility;
+            CopyImageMenuItem.Visibility = visibility;
+            DeleteImageMenuItem.Visibility = visibility;
+        }
+
+        /// <summary>本文中の指定位置にある画像を返す。無ければ null。</summary>
+        private Image? FindImageAt(Point point)
+        {
+            var hit = VisualTreeHelper.HitTest(NoteRichTextBox, point)?.VisualHit;
+            while (hit != null && hit != NoteRichTextBox)
+            {
+                if (hit is Image image) return image;
+                hit = VisualTreeHelper.GetParent(hit);
+            }
+            return null;
+        }
+
+        private void MenuCopyImage_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuImage?.Source is not BitmapSource bitmap) return;
+
+            try
+            {
+                Clipboard.SetImage(bitmap);
+            }
+            catch (Exception ex)
+            {
+                // 他のアプリがクリップボードを掴んでいると失敗する。付箋の内容は無事なので通知はしない。
+                System.Diagnostics.Debug.WriteLine($"[NoteWindow] MenuCopyImage_Click error: {ex.Message}");
+            }
+        }
+
+        private void MenuDeleteImage_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuImage == null) return;
+
+            // 画像は BlockUIContainer に入っている。器ごと外さないと空の行が残る。
+            if (LogicalTreeHelper.GetParent(_contextMenuImage) is BlockUIContainer container
+                && container.Parent is FlowDocument doc)
+            {
+                doc.Blocks.Remove(container);
+            }
+
+            _contextMenuImage = null;
         }
 
         /// <summary>検索バーの表示を現在の検索状態に合わせる。</summary>
