@@ -69,6 +69,7 @@
 | `Ctrl + F` / `Ctrl + B` | 1文字 進む / 戻る |
 | `Alt + F` / `Alt + B` | 1単語 進む / 戻る |
 | `Ctrl + P` / `Ctrl + N` | 1行 上 / 下へ移動 |
+| `Alt + <` / `Alt + >` | 本文の先頭 / 末尾へ移動 |
 | `Ctrl + @` / `Ctrl + Space` | 範囲選択の開始（マークをセット） |
 | `Ctrl + W` | 選択範囲をカット（非選択時は直前の1単語を削除） |
 | `Alt + W` | 選択範囲をコピー（非選択時は何もしない） |
@@ -97,6 +98,8 @@
   `Ctrl + /`（`Key.OemQuestion`）も同じアンドゥに割り当てる。端末では `Ctrl + _` と同じ制御コードになるため、
   Emacs / readline でも両者は同じ操作として扱われる。
   `Ctrl + Space` は日本語IMEに横取りされる環境があるため、`Ctrl + @` を代替として用意している。
+  `Alt + <` / `Alt + >` は JIS / US のどちらでも `<` `>` が `Shift + ,` `Shift + .` であるため、
+  `Key.OemComma` / `Key.OemPeriod` と `Shift` の同時押しで受ける（`Shift` 無しの `Alt + ,` `Alt + .` には割り当てない）。
 
 ### 2.3. インクリメンタル検索（isearch）
 

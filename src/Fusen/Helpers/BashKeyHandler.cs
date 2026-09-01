@@ -186,6 +186,13 @@ namespace Fusen.Helpers
                         // 選択範囲のコピー。非選択時は何もしない
                         CopyRegion();
                         return true;
+                    // Alt+< / Alt+> : 本文の先頭 / 末尾へ移動。`<` `>` は JIS/US とも Shift+, / Shift+.
+                    case Key.OemComma when shift:
+                        Move(EditingCommands.MoveToDocumentStart);
+                        return true;
+                    case Key.OemPeriod when shift:
+                        Move(EditingCommands.MoveToDocumentEnd);
+                        return true;
                 }
                 return false;
             }
