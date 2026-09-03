@@ -820,10 +820,21 @@ namespace Fusen.Views
         {
             if (_contextMenuImage == null) return;
 
+            // 記法を消す前に、どのファイルを指していたかを控えておく
+            var markdownPath = _contextMenuImage.Tag as string;
+
             // 消すのは本文の Markdown 画像記法。表示だけを外しても、記法が残っていれば作り直される。
             FlowDocumentHelper.RemoveImage(_contextMenuImage);
 
             _contextMenuImage = null;
+
+            // 参照が残っているかを調べる前に、記法を消した結果を本文へ反映しておく
+            Note.PlainText = FlowDocumentHelper.GetPlainText(NoteRichTextBox.Document);
+            Note.ContentXaml = FlowDocumentHelper.SaveToXaml(NoteRichTextBox.Document);
+            NoteManager.Instance.RequestAutoSave();
+
+            // 他のどこからも参照されなくなった画像は、ファイルごと片付ける
+            NoteManager.Instance.DeleteImageIfUnreferenced(markdownPath);
         }
 
         /// <summary>検索バーの表示を現在の検索状態に合わせる。</summary>

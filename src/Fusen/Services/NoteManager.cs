@@ -250,6 +250,28 @@ namespace Fusen.Services
         }
 
         /// <summary>
+        /// どの付箋からも参照されなくなった画像ファイルを削除する。
+        ///
+        /// 本文から画像記法を1つ消したときに使う。同じ画像を別の付箋が指していたり、
+        /// 同じ付箋の別の行にもう一度書かれていたりする場合はファイルを残す。
+        /// 呼ぶ側は、記法を消した結果を付箋の本文へ反映してから呼ぶこと。
+        /// </summary>
+        public bool DeleteImageIfUnreferenced(string? markdownPath)
+        {
+            if (string.IsNullOrWhiteSpace(markdownPath)) return false;
+
+            var fullPath = StorageService.Instance.ResolveImagePath(markdownPath);
+            if (string.IsNullOrEmpty(fullPath)) return false;
+
+            foreach (var note in Notes)
+            {
+                if (CollectImageFiles(note).Contains(fullPath)) return false;
+            }
+
+            return StorageService.Instance.DeleteImageFile(fullPath);
+        }
+
+        /// <summary>
         /// 付箋が参照している画像ファイルの実パスを集める。
         /// 本文と保存用 XAML の両方を見るのは、どちらか一方が古い状態でも取りこぼさないため。
         /// </summary>
