@@ -5,6 +5,8 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using Fusen.Services;
 using Markdig;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
@@ -22,8 +24,8 @@ namespace Fusen.Helpers
     /// 別の FlowDocument を作る。編集側の文書には一切触れないため、プレビューを開いても
     /// contentXaml が整形済みの内容で上書きされることはない。
     ///
-    /// 画像はプレビューに表示しない。Markdown の画像記法は代替テキストとして描画する。
-    /// （貼り付け画像は FlowDocument 側に保持されており plainText には含まれないため）
+    /// 画像は Markdown の画像記法（例: ![](images/xxx.png)）から実ファイルを読んで描画する。
+    /// 貼り付けた画像も本文には記法として書かれているため、編集画面と同じものが表示される。
     /// </summary>
     public static class MarkdownRenderer
     {
@@ -392,16 +394,9 @@ namespace Fusen.Helpers
 
         private static System.Windows.Documents.Inline ConvertLink(LinkInline link, double baseSize, Brush fg)
         {
-            // 画像はプレビューに表示しない。代替テキストが分かる形で残す
             if (link.IsImage)
             {
-                string alt = GetInlineText(link);
-                string label = string.IsNullOrWhiteSpace(alt) ? link.Url ?? string.Empty : alt;
-                return new Run($"[画像: {label}]")
-                {
-                    FontStyle = FontStyles.Italic,
-                    Foreground = MakeFaded(fg, 0.6),
-                };
+                return ConvertImage(link, fg);
             }
 
             var content = new Span();
@@ -413,6 +408,46 @@ namespace Fusen.Helpers
             }
 
             return MakeHyperlink(link.Url, content);
+        }
+
+        /// <summary>
+        /// Markdown の画像記法を実際の画像として描画する。
+        /// 読み込めない場合は、どの画像を指していたのか分かるよう代替テキストにする。
+        /// </summary>
+        private static System.Windows.Documents.Inline ConvertImage(LinkInline link, Brush fg)
+        {
+            string alt = GetInlineText(link);
+            var fullPath = StorageService.Instance.ResolveImagePath(link.Url ?? string.Empty);
+
+            if (!string.IsNullOrEmpty(fullPath))
+            {
+                try
+                {
+                    var image = new System.Windows.Controls.Image
+                    {
+                        Source = Helpers.FlowDocumentHelper.LoadBitmap(fullPath),
+                        Stretch = Stretch.Uniform,
+                        ToolTip = string.IsNullOrWhiteSpace(alt) ? link.Url : alt,
+                    };
+
+                    // 実際の大きさは表示幅が確定してから ApplyResponsiveImageSize が決める
+                    return new InlineUIContainer(image)
+                    {
+                        BaselineAlignment = BaselineAlignment.Bottom,
+                    };
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[MarkdownRenderer] ConvertImage error: {ex.Message}");
+                }
+            }
+
+            string label = string.IsNullOrWhiteSpace(alt) ? link.Url ?? string.Empty : alt;
+            return new Run($"[画像: {label}]")
+            {
+                FontStyle = FontStyles.Italic,
+                Foreground = MakeFaded(fg, 0.6),
+            };
         }
 
         private static System.Windows.Documents.Inline MakeHyperlink(string? url, System.Windows.Documents.Inline content)

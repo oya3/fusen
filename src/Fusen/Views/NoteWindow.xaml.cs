@@ -30,6 +30,20 @@ namespace Fusen.Views
         private readonly BashKeyHandler? _bashKeys;
 
         /// <summary>
+        /// 画像記法と、その下に表示する画像の同期を、入力が止まってから走らせるためのタイマー。
+        ///
+        /// TextChanged で直接同期すると、日本語入力の変換中に本文のブロックを差し替えることになり、
+        /// キャレットが飛んだり変換が中断したりする。入力が落ち着くまで待ってからまとめて反映する。
+        /// </summary>
+        private readonly System.Windows.Threading.DispatcherTimer _imageSyncTimer;
+
+        /// <summary>同期が自分で起こした TextChanged を無視するためのフラグ。</summary>
+        private bool _syncingImages;
+
+        /// <summary>画像記法の同期を待つ時間。長すぎると反応が鈍く、短すぎると変換中に割り込む。</summary>
+        private static readonly TimeSpan ImageSyncDelay = TimeSpan.FromMilliseconds(600);
+
+        /// <summary>
         /// 折りたたみ時のウィンドウ高。
         /// NoteWindow.xaml の HeaderBorder の Height(28) と、外周 Grid のマージン(8+8) の合計。
         /// ヘッダーの高さを変えたらここも合わせること。
@@ -87,6 +101,9 @@ namespace Fusen.Views
 
             // クリップボード貼り付けハンドラの設定
             DataObject.AddPastingHandler(NoteRichTextBox, OnPasteCommand);
+
+            _imageSyncTimer = new System.Windows.Threading.DispatcherTimer { Interval = ImageSyncDelay };
+            _imageSyncTimer.Tick += (_, _) => SyncImagePreviews();
         }
 
         protected override void OnSourceInitialized(EventArgs e)
@@ -195,9 +212,7 @@ namespace Fusen.Views
             }
             else if (!string.IsNullOrWhiteSpace(Note.PlainText))
             {
-                NoteRichTextBox.Document.Blocks.Clear();
-                var p = new Paragraph(new Run(Note.PlainText));
-                NoteRichTextBox.Document.Blocks.Add(p);
+                FlowDocumentHelper.LoadFromText(NoteRichTextBox.Document, Note.PlainText);
             }
 
             // 段落マージンを除去して行間を詰める
@@ -308,6 +323,10 @@ namespace Fusen.Views
                 PreviewViewer.Visibility = Visibility.Visible;
                 PreviewIcon.Text = "✏";
                 BtnPreview.ToolTip = "編集に戻る";
+
+                // 描画が済むまで表示幅が確定しないため、画像の追従はレイアウト後に行う
+                Dispatcher.BeginInvoke(new Action(UpdatePreviewImageSizes),
+                    System.Windows.Threading.DispatcherPriority.Loaded);
             }
             else
             {
@@ -316,6 +335,12 @@ namespace Fusen.Views
                 NoteRichTextBox.Visibility = Visibility.Visible;
                 PreviewIcon.Text = "👁";
                 BtnPreview.ToolTip = "Markdownプレビュー";
+
+                // プレビュー中に待ち時間が過ぎた分を、編集画面へ戻る時点で揃える
+                if (!_isInitializing)
+                {
+                    SyncImagePreviews();
+                }
             }
         }
 
@@ -445,6 +470,59 @@ namespace Fusen.Views
         private void UpdateImageSizes()
         {
             FlowDocumentHelper.ApplyResponsiveImageSize(NoteRichTextBox.Document, GetContentWidthForImages());
+        }
+
+        /// <summary>
+        /// 本文の Markdown 画像記法と、編集画面に表示している画像を一致させる。
+        ///
+        /// 差分がなければ本文に触れないため、入力中に呼ばれても実害はない。
+        /// 表示だけの変更なので、ここでは保存を要求しない。
+        /// </summary>
+        private void SyncImagePreviews()
+        {
+            _imageSyncTimer.Stop();
+            if (_syncingImages) return;
+
+            _syncingImages = true;
+            try
+            {
+                var caret = NoteRichTextBox.CaretPosition;
+
+                if (!FlowDocumentHelper.SyncImagePreviews(NoteRichTextBox.Document)) return;
+
+                // ブロックの増減でキャレットが動くことがあるため、元の位置へ戻す
+                if (caret != null && caret.IsInSameDocument(NoteRichTextBox.Document.ContentStart))
+                {
+                    NoteRichTextBox.CaretPosition = caret;
+                }
+
+                UpdateImageSizes();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[NoteWindow] SyncImagePreviews error: {ex.Message}");
+            }
+            finally
+            {
+                _syncingImages = false;
+            }
+        }
+
+        /// <summary>プレビューの画像に使える横幅。縦スクロールバーの分を見込む。</summary>
+        private double GetContentWidthForPreview()
+        {
+            double width = PreviewViewer.ActualWidth
+                           - PreviewViewer.Padding.Left - PreviewViewer.Padding.Right;
+
+            return Math.Max(40, width - 24);
+        }
+
+        /// <summary>プレビュー中の画像を現在の付箋幅に合わせる。</summary>
+        private void UpdatePreviewImageSizes()
+        {
+            if (PreviewViewer.Document == null) return;
+
+            FlowDocumentHelper.ApplyResponsiveImageSize(PreviewViewer.Document, GetContentWidthForPreview());
         }
 
         private void UpdateTitleDisplay()
@@ -607,7 +685,8 @@ namespace Fusen.Views
 
         private void NoteRichTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (_isInitializing) return;
+            // 同期が画像ブロックを出し入れしたときの通知。本文のテキストは変わっていない。
+            if (_isInitializing || _syncingImages) return;
 
             // 改行や貼り付けで生成された段落にもマージン除去を適用
             FlowDocumentHelper.NormalizeParagraphSpacing(NoteRichTextBox.Document);
@@ -618,6 +697,10 @@ namespace Fusen.Views
 
             UpdateTitleDisplay();
             NoteManager.Instance.RequestAutoSave();
+
+            // 画像記法の増減は、入力が落ち着いてから本文へ反映する
+            _imageSyncTimer.Stop();
+            _imageSyncTimer.Start();
         }
 
         private void NoteRichTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -673,6 +756,9 @@ namespace Fusen.Views
         private void NoteRichTextBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
         {
             _bashKeys?.EndSearch();
+
+            // 待ち時間の途中で編集を離れた分を取りこぼさない
+            SyncImagePreviews();
         }
 
         /// <summary>右クリックされた画像。メニューの項目を押したときの対象となる。</summary>
@@ -728,12 +814,8 @@ namespace Fusen.Views
         {
             if (_contextMenuImage == null) return;
 
-            // 画像は BlockUIContainer に入っている。器ごと外さないと空の行が残る。
-            if (LogicalTreeHelper.GetParent(_contextMenuImage) is BlockUIContainer container
-                && container.Parent is FlowDocument doc)
-            {
-                doc.Blocks.Remove(container);
-            }
+            // 消すのは本文の Markdown 画像記法。表示だけを外しても、記法が残っていれば作り直される。
+            FlowDocumentHelper.RemoveImage(_contextMenuImage);
 
             _contextMenuImage = null;
         }
@@ -803,8 +885,9 @@ namespace Fusen.Views
                         var fileName = StorageService.Instance.SaveImage(imageSource, Note.Id);
                         if (!string.IsNullOrEmpty(fileName))
                         {
-                            FlowDocumentHelper.InsertImage(NoteRichTextBox, imageSource, fileName);
-                            UpdateImageSizes();
+                            // 本文には記法だけを書き、画像はその記法を見て同期処理が表示する
+                            FlowDocumentHelper.InsertImageMarker(NoteRichTextBox, fileName);
+                            SyncImagePreviews();
                             e.CancelCommand();
                             e.Handled = true;
                             return;
@@ -839,6 +922,7 @@ namespace Fusen.Views
             if (e.WidthChanged && !Note.IsFolded)
             {
                 UpdateImageSizes();
+                UpdatePreviewImageSizes();
             }
         }
     }

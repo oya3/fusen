@@ -28,6 +28,9 @@ namespace Fusen.Services
 
     public class StorageService
     {
+        /// <summary>data ディレクトリ配下の画像フォルダ名。本文に書く相対パスの先頭にも使う。</summary>
+        public const string ImagesDirectoryName = "images";
+
         private static StorageService? _instance;
         public static StorageService Instance => _instance ??= new StorageService();
 
@@ -60,7 +63,7 @@ namespace Fusen.Services
                 _dataDirectory = Path.Combine(baseDir, "data");
             }
 
-            _imagesDirectory = Path.Combine(_dataDirectory, "images");
+            _imagesDirectory = Path.Combine(_dataDirectory, ImagesDirectoryName);
             _notesFilePath = Path.Combine(_dataDirectory, "notes.json");
 
             Directory.CreateDirectory(_dataDirectory);
@@ -212,13 +215,50 @@ namespace Fusen.Services
             }
         }
 
-        public string GetImageFullPath(string fileNameOrPath)
+        /// <summary>
+        /// 本文の Markdown に書かれた画像パスを、実ファイルのパスへ解決する。
+        ///
+        /// 標準の書き方は data ディレクトリからの相対（例: images/xxx.png）。
+        /// 本文は手で書き換えられるため、ファイル名だけ（例: xxx.png）や絶対パスも受け付ける。
+        /// 実在しない場合は空文字を返す。呼び出し側は代替表示に切り替えること。
+        /// </summary>
+        public string ResolveImagePath(string pathInMarkdown)
         {
-            if (Path.IsPathRooted(fileNameOrPath))
+            if (string.IsNullOrWhiteSpace(pathInMarkdown))
             {
-                return fileNameOrPath;
+                return string.Empty;
             }
-            return Path.Combine(_imagesDirectory, fileNameOrPath);
+
+            var path = pathInMarkdown.Trim().Replace('/', Path.DirectorySeparatorChar);
+
+            try
+            {
+                if (Path.IsPathRooted(path))
+                {
+                    return File.Exists(path) ? path : string.Empty;
+                }
+
+                foreach (var baseDirectory in new[] { _dataDirectory, _imagesDirectory })
+                {
+                    var candidate = Path.GetFullPath(Path.Combine(baseDirectory, path));
+                    if (File.Exists(candidate))
+                    {
+                        return candidate;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[StorageService] ResolveImagePath error: {ex.Message}");
+            }
+
+            return string.Empty;
         }
+
+        /// <summary>
+        /// 本文へ書き込む画像パスを組み立てる。data ディレクトリからの相対で、区切りは "/" に揃える。
+        /// フォルダごと移動しても参照が壊れないようにするため、絶対パスは書かない。
+        /// </summary>
+        public string BuildMarkdownImagePath(string fileName) => $"{ImagesDirectoryName}/{fileName}";
     }
 }
