@@ -164,8 +164,8 @@
                                 <TextBlock x:Name="FoldIcon" Text="▲" FontSize="11" FontWeight="Bold" Foreground="{Binding ElementName=TitleTextBlock, Path=Foreground}" />
                             </Button>
 
-                            <!-- 閉じる（剥がす/削除） ✕ -->
-                            <Button Style="{StaticResource HeaderButtonStyle}" ToolTip="この付箋を剥がす（削除）" Click="BtnDelete_Click">
+                            <!-- 剥がす（保管） ✕ / 完全削除はメモ一覧マネージャーのみ -->
+                            <Button Style="{StaticResource HeaderButtonStyle}" ToolTip="デスクトップから剥がして保管（メモ一覧から戻せます）" Click="BtnDetach_Click">
                                 <TextBlock Text="✕" FontSize="12" FontWeight="SemiBold" Foreground="{Binding ElementName=TitleTextBlock, Path=Foreground}" />
                             </Button>
                         </StackPanel>

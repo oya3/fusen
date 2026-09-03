@@ -678,9 +678,15 @@ namespace Fusen.Views
             NoteManager.Instance.RequestAutoSave();
         }
 
-        private void BtnDelete_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// ヘッダーの ✕ は付箋をデスクトップから剥がして保管する。内容は消さない。
+        ///
+        /// ここから完全削除できないのは、折りたたみ ▲ の隣という押し間違えやすい位置にあるため。
+        /// 取り消せない操作は、確認を挟むメモ一覧マネージャー側に集約している。
+        /// </summary>
+        private void BtnDetach_Click(object sender, RoutedEventArgs e)
         {
-            NoteManager.Instance.DeleteNote(Note);
+            NoteManager.Instance.ToggleNoteVisibility(Note);
         }
 
         private void NoteRichTextBox_TextChanged(object sender, TextChangedEventArgs e)
