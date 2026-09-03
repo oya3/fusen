@@ -260,5 +260,40 @@ namespace Fusen.Services
         /// フォルダごと移動しても参照が壊れないようにするため、絶対パスは書かない。
         /// </summary>
         public string BuildMarkdownImagePath(string fileName) => $"{ImagesDirectoryName}/{fileName}";
+
+        /// <summary>
+        /// 参照されなくなった画像ファイルを削除する。
+        ///
+        /// 消すのは data/images 配下にあるものだけに限る。本文は手で書き換えられるため、
+        /// 記法には data の外や絶対パスが書かれていることがある。それはユーザー自身の
+        /// ファイルであり、付箋を消したついでに巻き添えにしてはいけない。
+        /// </summary>
+        public bool DeleteImageFile(string fullPath)
+        {
+            if (string.IsNullOrWhiteSpace(fullPath)) return false;
+
+            try
+            {
+                var imagesRoot = Path.GetFullPath(_imagesDirectory)
+                    .TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                var target = Path.GetFullPath(fullPath);
+
+                if (!target.StartsWith(imagesRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[StorageService] Skipped deleting outside images dir: {target}");
+                    return false;
+                }
+
+                if (!File.Exists(target)) return false;
+
+                File.Delete(target);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[StorageService] DeleteImageFile error: {ex.Message}");
+                return false;
+            }
+        }
     }
 }

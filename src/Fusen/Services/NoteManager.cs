@@ -213,10 +213,63 @@ namespace Fusen.Services
 
         public void DeleteNote(NoteItem note)
         {
+            // 付箋を外す前に調べる。外した後では「他の付箋も使っているか」を正しく判定できない。
+            var orphanedImages = GetImagesOnlyUsedBy(note);
+
             CloseNoteWindow(note.Id);
             Notes.Remove(note);
+
+            foreach (var fullPath in orphanedImages)
+            {
+                StorageService.Instance.DeleteImageFile(fullPath);
+            }
+
             RequestAutoSave();
             NotesChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// この付箋だけが参照している画像ファイルを返す（実在するもののみ）。
+        ///
+        /// 記法はテキストなのでコピーできる。同じ画像を他の付箋も指している場合は、
+        /// この付箋を消してもファイルは残さなければならない。
+        /// 削除前の確認ダイアログで枚数を示すためにも使う。
+        /// </summary>
+        public List<string> GetImagesOnlyUsedBy(NoteItem note)
+        {
+            var files = CollectImageFiles(note);
+            if (files.Count == 0) return new List<string>();
+
+            foreach (var other in Notes)
+            {
+                if (ReferenceEquals(other, note)) continue;
+                files.ExceptWith(CollectImageFiles(other));
+            }
+
+            return files.ToList();
+        }
+
+        /// <summary>
+        /// 付箋が参照している画像ファイルの実パスを集める。
+        /// 本文と保存用 XAML の両方を見るのは、どちらか一方が古い状態でも取りこぼさないため。
+        /// </summary>
+        private static HashSet<string> CollectImageFiles(NoteItem note)
+        {
+            var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var text in new[] { note.PlainText, note.ContentXaml })
+            {
+                foreach (var path in FlowDocumentHelper.EnumerateImagePaths(text))
+                {
+                    var fullPath = StorageService.Instance.ResolveImagePath(path);
+                    if (!string.IsNullOrEmpty(fullPath))
+                    {
+                        files.Add(fullPath);
+                    }
+                }
+            }
+
+            return files;
         }
 
         public void ToggleNoteVisibility(NoteItem note)

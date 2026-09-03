@@ -40,9 +40,28 @@ namespace Fusen.Helpers
             RegexOptions.Compiled);
 
         /// <summary>
+        /// 行の途中に書かれたものも含め、本文中のすべての画像記法を拾う。
+        /// 付箋を削除したときに、どの画像ファイルが不要になるかを調べるために使う。
+        /// </summary>
+        private static readonly Regex AnyImagePattern = new(
+            @"!\[[^\]]*\]\(\s*(?<path>[^)\s]+)\s*\)",
+            RegexOptions.Compiled);
+
+        /// <summary>
         /// 描画専用ブロックの目印。保存される XAML には出ないため、本文の一部にはならない。
         /// </summary>
         private const string PreviewContainerTag = "fusen:image-preview";
+
+        /// <summary>本文中の画像記法に書かれたパスをすべて返す。</summary>
+        public static IEnumerable<string> EnumerateImagePaths(string? text)
+        {
+            if (string.IsNullOrEmpty(text)) yield break;
+
+            foreach (Match match in AnyImagePattern.Matches(text))
+            {
+                yield return match.Groups["path"].Value;
+            }
+        }
 
         public static string SaveToXaml(FlowDocument doc)
         {

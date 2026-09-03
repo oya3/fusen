@@ -147,8 +147,14 @@ namespace Fusen.Views
         {
             if (sender is Button btn && btn.Tag is NoteItem note)
             {
+                // 一緒に消える画像の枚数を先に示す。消えてから気づいても取り返せないため。
+                var orphanedImages = NoteManager.Instance.GetImagesOnlyUsedBy(note);
+                var imageNotice = orphanedImages.Count > 0
+                    ? $"\nこの付箋だけが使っている画像 {orphanedImages.Count} 枚も削除されます。"
+                    : string.Empty;
+
                 var result = MessageBox.Show(
-                    $"付箋「{note.Title}」を削除しますか？\n（この操作は取り消せません）",
+                    $"付箋「{note.Title}」を削除しますか？{imageNotice}\n（この操作は取り消せません）",
                     "fusen - 付箋の削除",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
