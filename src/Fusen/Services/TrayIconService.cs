@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Fusen.Helpers;
 using Fusen.Services;
 
 namespace Fusen.Services
@@ -225,6 +226,9 @@ namespace Fusen.Services
             var itemFoldAll = new MenuItem { Header = "▼ すべて折りたたむ" };
             itemFoldAll.Click += (s, e) => NoteManager.Instance.FoldAll(true);
 
+            var itemAbout = new MenuItem { Header = "ℹ️ バージョン情報" };
+            itemAbout.Click += (s, e) => ShowAbout();
+
             var itemExit = new MenuItem { Header = "🚪 終了" };
             itemExit.Click += (s, e) => Application.Current.Shutdown();
 
@@ -236,7 +240,18 @@ namespace Fusen.Services
             _contextMenu.Items.Add(itemExpandAll);
             _contextMenu.Items.Add(itemFoldAll);
             _contextMenu.Items.Add(new Separator());
+            _contextMenu.Items.Add(itemAbout);
             _contextMenu.Items.Add(itemExit);
+        }
+
+        /// <summary>
+        /// バージョン情報を表示する。どのビルドが動いているかを利用者が確認できるようにするため。
+        /// フォルダごとコピーして配る運用では、手元の exe がどの版か分からなくなりやすい。
+        /// </summary>
+        private void ShowAbout()
+        {
+            MessageBox.Show(AppVersion.BuildSummary(), "fusen について",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void OpenDataDirectory()
