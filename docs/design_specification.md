@@ -146,7 +146,8 @@ fusen/
 ├── setup-autostart.ps1           # 自動起動の設定/解除（配布フォルダへ同梱）
 ├── setup-autostart.bat           # 上記のダブルクリック用ランチャ（同梱）
 ├── docs/
-│   └── design_specification.md   # 本設計書
+│   ├── design_specification.md   # 本設計書
+│   └── memos/                    # 調査メモ（不具合の経緯・対策・再発時の手順）
 ├── data/                         # アプリケーションデータ（完全ポータブル・Git管理外）
 │   ├── notes.json                # 付箋データ（位置・サイズ・内容・設定）
 │   ├── backups/                  # notes.json の世代バックアップ
@@ -177,6 +178,7 @@ fusen/
         │   └── TrayIconService.cs                        # タスクトレイ常駐
         └── Helpers/
             ├── BashKeyHandler.cs                         # bash(Readline)キーバインド処理
+            ├── ImeCompat.cs                              # WPF に TSF を使わせない（§6.5）
             ├── IncrementalSearch.cs                      # Ctrl+S / Ctrl+R のインクリメンタル検索
             ├── MarkdownRenderer.cs                       # Markdown -> FlowDocument 描画
             ├── Converters.cs                             # XAMLバインディングコンバーター
@@ -492,6 +494,28 @@ fusen/
      `notes_corrupt_*.json` として `data/backups/` に保管し、結果は付箋表示後にダイアログで通知する。
 4. **完全なポータビリティ**:
    - フォルダを丸ごと別のPCやUSBメモリにコピーしても、設定やデータがそのまま移行可能。
+5. **IME(TSF) を使わない**（§6.5）。
+
+### 6.5. 日本語入力は IMM32 経路を使う（TSF の無効化）
+
+起動時に `Helpers/ImeCompat.cs` で WPF に **TSF (Text Services Framework) を使わせない**。
+`App.Application_Startup` の先頭、**付箋を1枚も作る前**に実行する。
+
+* **理由**: TSF が有効だと、`RichTextBox` は選択範囲が変わるたびに TSF へ通知する
+  （`ITextStoreACPSink.OnSelectionChange`）。WPF はその処理の中で毎回 `TF_CreateCategoryMgr` で
+  COM オブジェクトを作りに行き、IME 側の応答を待つ。この待ちで UI スレッドが止まる（実測 914ms）。
+  マウスのドラッグで範囲選択するとマウスが動くたびに通知が飛ぶため、
+  「ドラッグしても選択の色反転が止まり、しばらくして一気に追いつく」という形で現れる。
+  キーボードでの範囲選択（§2.2）が平気なのは、通知の回数が桁違いに少ないため。
+* **方法**: WPF に TSF を切る公開スイッチが無いため、内部の判定結果
+  （`MS.Internal.TextServicesLoader.s_servicesInstalled`）をリフレクションで「未インストール」に倒す。
+  これで `TextEditor.TextStore` が作られなくなり、通知経路そのものが消える。
+  日本語入力は `ImmComposition`（IMM32）が引き継ぐ。
+* **失敗しても続行する**: 内部実装に依存するため、将来の .NET で通用しなくなる可能性がある。
+  例外は握り潰し、その場合は従来どおり（TSF 有効のまま）動作する。
+* **`fusen.ini` に切り替え設定は設けない**: 設定を触らない利用者も自動的に救うため。
+  TSF 専用のテキストサービスを使う必要が出た場合は、`App.Application_Startup` の呼び出しを外す。
+* 調査の経緯・外した仮説・再発時の手順は `docs/memos/2026-09-06-mouse-selection-freeze.md` に残す。
 
 ---
 

@@ -1,5 +1,6 @@
 using System;
 using System.Windows;
+using Fusen.Helpers;
 using Fusen.Services;
 
 namespace Fusen
@@ -10,6 +11,10 @@ namespace Fusen
 
         private void Application_Startup(object sender, StartupEventArgs e)
         {
+            // 付箋を1枚も作る前に済ませること。マウスでの範囲選択が IME(TSF) の応答待ちで
+            // 止まるのを防ぐ。詳細は ImeCompat のコメントを参照。
+            ImeCompat.DisableTextServicesFramework();
+
             AppConfig.Instance.Initialize();
 
             _trayIconService = new TrayIconService();
