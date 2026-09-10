@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using Fusen.Helpers;
 using Fusen.Models;
 using Fusen.Views;
+using Microsoft.Win32;
 
 namespace Fusen.Services
 {
@@ -20,6 +21,16 @@ namespace Fusen.Services
         private NoteListWindow? _listWindow;
         private readonly DispatcherTimer _autoSaveTimer;
 
+        /// <summary>
+        /// 画面構成の変化を受けてから位置補正を走らせるまでの待ち時間。
+        /// モニタの取り外しや解像度変更では DisplaySettingsChanged が短い間に何度も飛ぶ。
+        /// 途中の一時的な構成で補正すると、最終的な構成とは違う位置へ寄せてしまうため落ち着くまで待つ。
+        /// </summary>
+        private static readonly TimeSpan DisplayChangeDelay = TimeSpan.FromMilliseconds(500);
+
+        private readonly DispatcherTimer _displayChangeTimer;
+        private bool _displayEventsHooked;
+
         public event Action? NotesChanged;
 
         public NoteManager()
@@ -32,6 +43,16 @@ namespace Fusen.Services
             {
                 _autoSaveTimer.Stop();
                 SaveAllImmediately();
+            };
+
+            _displayChangeTimer = new DispatcherTimer
+            {
+                Interval = DisplayChangeDelay
+            };
+            _displayChangeTimer.Tick += (s, e) =>
+            {
+                _displayChangeTimer.Stop();
+                EnsureAllOnScreen();
             };
         }
 
@@ -81,8 +102,45 @@ namespace Fusen.Services
                 }
             }
 
+            // モニタを外した後も付箋を掴める位置に保つ（§4.6）
+            HookDisplaySettingsChanged();
+
             // 破損からの復旧が発生していれば、付箋を表示し終えてから通知する
             NotifyIfRecovered();
+        }
+
+        private void HookDisplaySettingsChanged()
+        {
+            if (_displayEventsHooked) return;
+
+            SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+            _displayEventsHooked = true;
+        }
+
+        /// <summary>
+        /// SystemEvents は UI とは別のスレッドから通知するため、Dispatcher へ移してから
+        /// デバウンス用のタイマーを回す。
+        /// </summary>
+        private void OnDisplaySettingsChanged(object? sender, EventArgs e)
+        {
+            Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                _displayChangeTimer.Stop();
+                _displayChangeTimer.Start();
+            }));
+        }
+
+        /// <summary>
+        /// 開いている付箋のうち、ヘッダーが見えなくなったものを掴める位置へ引き戻す。
+        /// 2画面目を外すと、そこへ置いた付箋は座標が残ったまま画面のどこにも出なくなり、
+        /// 一覧から「🎯 開く」を選ぶまで気づけないため。
+        /// </summary>
+        public void EnsureAllOnScreen()
+        {
+            foreach (var window in _openWindows.Values.ToList())
+            {
+                window.EnsureOnScreen();
+            }
         }
 
         /// <summary>
@@ -307,6 +365,13 @@ namespace Fusen.Services
                 // デスクトップに再表示
                 note.IsVisible = true;
                 ShowNoteWindow(note);
+
+                // 非表示のあいだにモニタ構成が変わっていることがある。
+                // 保管中の付箋は画面構成の変化に追従できないため、出すときに確かめる。
+                if (_openWindows.TryGetValue(note.Id, out var shown))
+                {
+                    shown.EnsureOnScreen();
+                }
             }
             RequestAutoSave();
             NotesChanged?.Invoke();
@@ -367,6 +432,13 @@ namespace Fusen.Services
 
         public void Shutdown()
         {
+            if (_displayEventsHooked)
+            {
+                SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+                _displayEventsHooked = false;
+            }
+            _displayChangeTimer.Stop();
+
             SaveAllImmediately();
 
             // 終了時の状態を1世代残しておく（次回起動までの間に破損しても直前まで戻せる）
