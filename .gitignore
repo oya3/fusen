@@ -17,3 +17,6 @@ data/
 Thumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+
+# Claude Code (個人用の設定上書き。共有しない)
+.claude/settings.local.json
