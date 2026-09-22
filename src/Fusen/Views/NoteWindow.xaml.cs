@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -894,8 +894,10 @@ namespace Fusen.Views
         {
             try
             {
-                // クリップボードに画像があるかチェック
-                if (Clipboard.ContainsImage())
+                // クリップボードに画像があるかチェック。
+                // Excel はセル範囲をコピーするとテキストと画像の両方を載せるため、
+                // テキストがあるときはテキストを優先し、画像として貼り付けない。
+                if (Clipboard.ContainsImage() && !Clipboard.ContainsText())
                 {
                     var imageSource = Clipboard.GetImage();
                     if (imageSource != null)
@@ -910,6 +912,21 @@ namespace Fusen.Views
                             e.Handled = true;
                             return;
                         }
+                    }
+                }
+
+                // 書式付き（RTF / HTML）のまま貼り付くと、コピー元のフォントサイズや
+                // 中央揃えが付箋へ持ち込まれる。本文は Markdown のテキストとして扱う
+                // 設計のため、書式を捨ててプレーンテキストだけを貼り付ける。
+                var source = e.SourceDataObject ?? e.DataObject;
+                if (source != null && source.GetDataPresent(DataFormats.UnicodeText, true))
+                {
+                    if (source.GetData(DataFormats.UnicodeText, true) is string text)
+                    {
+                        var plain = new DataObject();
+                        plain.SetData(DataFormats.UnicodeText, text);
+                        e.DataObject = plain;
+                        e.FormatToApply = DataFormats.UnicodeText;
                     }
                 }
             }
