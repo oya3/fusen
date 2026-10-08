@@ -61,6 +61,16 @@ namespace Fusen.Views
         private const int HTBOTTOMLEFT = 16;
         private const int HTBOTTOMRIGHT = 17;
 
+        // Windows API: Alt+Tab から外すための拡張スタイル（§4.1）
+        private const int GWL_EXSTYLE = -20;
+        private const int WS_EX_TOOLWINDOW = 0x00000080;
+
+        [DllImport("user32.dll")]
+        private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+        [DllImport("user32.dll")]
+        private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
         public NoteWindow(NoteItem note)
         {
             InitializeComponent();
@@ -110,6 +120,11 @@ namespace Fusen.Views
         {
             base.OnSourceInitialized(e);
             var hwnd = new WindowInteropHelper(this).Handle;
+
+            // ShowInTaskbar="False" はタスクバーにしか効かず、Alt+Tab には残るため、
+            // ツールウィンドウにして Alt+Tab の候補からも外す。
+            SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_TOOLWINDOW);
+
             var source = HwndSource.FromHwnd(hwnd);
             source?.AddHook(WndProc);
         }
